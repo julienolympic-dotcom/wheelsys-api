@@ -93,11 +93,12 @@ Supabase (D-001 — à déployer avant). Aucun serveur supplémentaire requis.
 - [x] **9.1** Capture endpoint `vehiclelistreport` + champs réels (KNOWLEDGE §10)
 - [x] **9.2** Règle D-009 (VP +2 / VU +3, `plannedexitdate` prioritaire, saisonnier
       mi-septembre togglable) + table de 9 cas limites
-- [ ] **9.3** Moteur `rules.js` : `classeVehicule` (categoryname + fallback D-007),
-      `dureeDetention`, `computeDateSortie` (toggle saisonnier) + **tests unitaires
-      des 9 cas limites D-009** (sandbox Node, sans wheelsys) — quick win
-- [ ] **9.4** Route `GET /api/plan-flotte?horizon=12` (filtre parc présent
-      status≠Defleeted & fleetexit null, calcul sortie) — test live = credentials backend
+- [x] **9.3** ✅ 2026-06-25 — Moteur `rules.js` (`classeVehicule`, `dureeDetention`,
+      `computeDateSortie`, `isParcPresent`) + `test/rules.test.js` (20 tests, 9 cas D-009) — vert
+- [x] **9.4** ✅ 2026-06-25 — `lib/planFlotte.js` + route `GET /api/plan-flotte?horizon=12&saisonnier=off`,
+      `test/planFlotte.test.js` (20 tests) + **smoke live OK** (468 présents in-scope, KNOWLEDGE §11)
+- [ ] **9.4bis** Séparer alertes `dépassé` (`joursRestants < 0`) vs `à venir`
+      (`0..horizon`) + tri « prochaines sorties » sur positives (cf. piège §11, propo D-010)
 - [ ] **9.5** Rotation durée de détention (`fleetutilizationreport` entrée→aujourd'hui,
       Decimal.js) par catégorie + reco ≥/<70 % + alertes groupées (catégorie × fenêtre)
 - [ ] **9.6** Restitution : onglet « Plan de flotte » (4 états) + export Excel
@@ -112,9 +113,13 @@ Supabase (D-001 — à déployer avant). Aucun serveur supplémentaire requis.
 [2026-06-05] Ajouter export Excel (.xlsx) des 3 onglets — ref session 2
 [2026-06-23] Déployer v1.5 (exemptions cautions + départs, tables compactes) — deploy.bat
 [2026-06-23] Phase 8 email reporting : déployer Supabase (D-001) en prérequis
-[2026-06-24] Phase 9.3 — coder rules.js (fonctions pures) + tester 9 cas limites D-009 (sandbox) — ref session plan-flotte
-[2026-06-24] Phase 9.4 — route /api/plan-flotte ; PRÉREQUIS credentials wheelsys côté backend-pilotage pour test live
-[2026-06-24] git init dans le dossier projet (AUCUN repo git actuellement) avant tout commit/checkpoint
+[2026-06-24] Phase 9.3 — coder rules.js (fonctions pures) + tester 9 cas limites D-009 (sandbox) — ✅ FAIT 2026-06-25
+[2026-06-24] Phase 9.4 — route /api/plan-flotte + smoke live — ✅ FAIT 2026-06-25 (468 présents in-scope)
+[2026-06-25] Phase 9.4bis — séparer alertes dépassé/à venir + tri prochaines sur positives — ref session plan-flotte
+[2026-06-25] Arrêter D-010 (2 buckets dépassé/à venir) avec Julien avant 9.4bis
+[2026-06-25] Phase 9.5 — rotation durée de détention + reco 70 % (Decimal.js, fleetutilizationreport) — Planning conseillé
+[2026-06-25] Relâcher engines package.json backend-pilotage à ">=20" (warning EBADENGINE sur node 24)
+[2026-06-25] backend-pilotage : Julien valide le code relu puis déploie Railway (credentials .env déjà en place) — aucun deploy auto
 ```
 
 ---

@@ -260,6 +260,10 @@ servdays                         jours en service/atelier
 | 2026-06-24 | `bookedvsrented` : 886 entrées, champs `totrescharge`, `totrntcharge`, `sourcecode`, `agentname` | Conversion résa/location et no-show |
 | 2026-06-24 | Portage Deno : JWT via `crypto.subtle` (Web Crypto API), `Headers.getSetCookie()` dispo Deno 1.30+ | Pattern Edge Functions Supabase pour wheelsys |
 | 2026-06-24 | Quand user dit "migrer vers Lovable" : clarifier ce qui migre (frontend/backend/API layer) avant de produire | Évite 2+ itérations de mauvaise direction |
+| 2026-06-25 | Moteur plan de flotte (D-009) codé en fonctions pures + 40 tests offline (node:assert, 0 dépendance) verts avant tout réseau | Logique métier validée sans wheelsys |
+| 2026-06-25 | Smoke test live OK : `vehiclelistreport` via backend-pilotage → 468 présents in-scope (réf §10 = 472), PL 1 exclu, sansDate 0 ; filtres « Date basis » + `edstations:null` confirmés | Bloc 4 validé bout-en-bout |
+| 2026-06-25 | Sandbox Cowork ne joint pas `wheelsys.io` (curl → 000) → smoke test live à exécuter en local par Julien | Pattern : séparer moteur testable / IO réseau |
+| 2026-06-25 | Alertes plan de flotte : nombreux `joursRestants < 0` (véhicules présents au-delà de leur sortie théo) → distinguer « dépassé » vs « à venir » | Évite une liste « prochaines sorties » trompeuse (affiche 2021) |
 
 ---
 
@@ -453,6 +457,47 @@ Parc présent = `carstatus !== 'Defleeted'` **ET** `fleetexit == null`.
 3. Dates ISO `T00:00:00` → `parseISO` direct, **jamais sur null** (guard plannedexit/fleetexit).
 4. Ajustement saisonnier (cargroups `U20H, FR3, FR5, FR6, 12F, M, MA`) appliqué
    par-dessus, indépendant VP/VU, togglable (D-009).
+
+---
+
+## 11. Plan de flotte — moteur + validation live ✅ 2026-06-25
+
+> Blocs 3 (Phase 9.3) et 4 (Phase 9.4) livrés. Code dans `backend-pilotage/`.
+
+### Moteur (fonctions pures, testées offline)
+- `src/lib/rules.js` : `classeVehicule(categoryname, cargroup)` (VP/VU/PL natif +
+  fallback D-007), `dureeDetention` (VP 2 / VU 3), `isSeasonalCargroup`,
+  `computeDateSortie(vehicle, {prolongerApresSaison})` (D-009 §4..§6),
+  `isParcPresent(vehicle)` (status≠Defleeted & fleetexit null & in-scope).
+- `src/lib/planFlotte.js` : `buildPlanFlotte(rows, {horizon, saisonnier, today})` →
+  filtre présent, calcule sortie, trie, comptes `exclusPL`/`sansDateCalculable`,
+  alertes ≤ horizon, synthèses `parClasse`/`parAgence`. Robuste `rows` vide/null.
+- Tests : `test/rules.test.js` (20) + `test/planFlotte.test.js` (20), `node:assert`,
+  zéro dépendance. **40/40 verts.**
+
+### Route `GET /api/plan-flotte`
+- Params : `horizon` (mois, défaut 12, borné 1..120), `saisonnier=off` désactive le
+  report 15/09. Appel `vehiclelistreport`, plage « Date basis »
+  `2010-01-01|<today+5ans>`. Réponse = sortie `buildPlanFlotte` + `scanRange`.
+
+### Validation live (smoke test, 2026-06-25)
+- Script `test/smoke-plan-flotte.js` (read-only, dotenv). **⚠️ Le sandbox Cowork ne
+  joint pas `wheelsys.io` (curl → `000`) → smoke test à lancer en LOCAL** :
+  `cd backend-pilotage && npm install && node test/smoke-plan-flotte.js`.
+- Résultat réel : 1602 lignes brutes → **parcPresentInScope 468** · avecDate 467 ·
+  **exclusPL 1** · sansDateCalculable 0 (réf §10 = 472, écart normal flotte évolutive).
+  Filtres « Date basis » + `edstations:null` (filtrage in-scope serveur) **confirmés**.
+
+### ⚠️ Piège relevé — « dépassé » vs « à venir »
+Beaucoup d'alertes ont `joursRestants < 0` (véhicules présents bien au-delà de leur
+sortie théorique, ex. 2021-02-18). Ce sont de vraies alertes (retard de défleet), mais
+le tri « prochaines sorties » remonte du passé. **À faire (9.4bis)** : séparer bucket
+`dépassé` (`joursRestants < 0`) et `à venir` (`0..horizon`), trier les prochaines sur
+les positives. Décision à arrêter avec Julien (proposition D-010).
+
+### Note env
+`package.json` exige `node: 20.x` ; Julien tourne node 24 → warning `EBADENGINE`
+inoffensif. Relâcher à `>=20` supprimerait le bruit.
 
 ---
 _Liés : [instructions.md](./instructions.md) · [ROADMAP.md](./ROADMAP.md)_
