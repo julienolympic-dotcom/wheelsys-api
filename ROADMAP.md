@@ -120,6 +120,9 @@ Supabase (D-001 — à déployer avant). Aucun serveur supplémentaire requis.
 [2026-06-25] Phase 9.5 — rotation durée de détention + reco 70 % (Decimal.js, fleetutilizationreport) — Planning conseillé
 [2026-06-25] Relâcher engines package.json backend-pilotage à ">=20" (warning EBADENGINE sur node 24)
 [2026-06-25] backend-pilotage : Julien valide le code relu puis déploie Railway (credentials .env déjà en place) — aucun deploy auto
+[2026-06-25] backend-pilotage : `git push` du commit 12e04eb (Blocs 3-4, déjà commité local sur `main`, ahead 1) après relecture — repo GitHub wheels-backend-pilotage
+[2026-06-25] Repo parent : exécuter le nettoyage préparé — `.gitignore` racine (créé) + `git rm -r --cached wheelsys-reporting/node_modules` + commit ; réparer l'index si « unknown index entry format » (`Remove-Item .git\index -Force ; git reset`)
+[2026-06-25] Repo parent (optionnel) : mettre à jour le pointeur sous-module backend-pilotage vers 12e04eb (sinon le parent reste sur le commit du 12/06)
 ```
 
 ---

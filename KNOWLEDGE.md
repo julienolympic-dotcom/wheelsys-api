@@ -264,6 +264,8 @@ servdays                         jours en service/atelier
 | 2026-06-25 | Smoke test live OK : `vehiclelistreport` via backend-pilotage → 468 présents in-scope (réf §10 = 472), PL 1 exclu, sansDate 0 ; filtres « Date basis » + `edstations:null` confirmés | Bloc 4 validé bout-en-bout |
 | 2026-06-25 | Sandbox Cowork ne joint pas `wheelsys.io` (curl → 000) → smoke test live à exécuter en local par Julien | Pattern : séparer moteur testable / IO réseau |
 | 2026-06-25 | Alertes plan de flotte : nombreux `joursRestants < 0` (véhicules présents au-delà de leur sortie théo) → distinguer « dépassé » vs « à venir » | Évite une liste « prochaines sorties » trompeuse (affiche 2021) |
+| 2026-06-25 | `backend-pilotage` est un **dépôt git séparé** (GitHub `wheels-backend-pilotage`) ; le code métier se commit LÀ, pas dans le repo parent | Le `git add .` du parent n'enregistrait qu'un gitlink (mode 160000), pas les fichiers |
+| 2026-06-25 | Git depuis le sandbox sur le mount OneDrive = non fiable (impossible de supprimer `index.lock`, `unknown index entry format`) → faire les opérations git côté Windows | Évite stale locks et corruption d'index ; le sandbox sert au code/tests, pas au git du parent |
 
 ---
 
@@ -498,6 +500,26 @@ les positives. Décision à arrêter avec Julien (proposition D-010).
 ### Note env
 `package.json` exige `node: 20.x` ; Julien tourne node 24 → warning `EBADENGINE`
 inoffensif. Relâcher à `>=20` supprimerait le bruit.
+
+---
+
+## 12. Topologie des dépôts git ✅ 2026-06-25
+
+| Dépôt | `.git` | Remote | Rôle |
+|---|---|---|---|
+| `Wheels Report/` (parent) | oui (branche `master`) | **aucun** | Conteneur local : docs (instructions/KNOWLEDGE/ROADMAP/DECISIONS), `wheelsys-reporting/`, `lovable-code/`, skills |
+| `backend-pilotage/` | oui (branche `main`) | **GitHub** `julienolympic-dotcom/wheels-backend-pilotage` | Service Express plan-flotte/pilotage → déploie Railway |
+
+- **Règle** : le code de `backend-pilotage` se commit/pushe dans SON repo (`main`),
+  pas dans le parent. Le parent ne fait que pointer (gitlink mode 160000) — à éviter
+  d'utiliser pour versionner ce code.
+- **Pièges OneDrive + sandbox** : `index.lock` parfois non supprimable (`Operation not
+  permitted`), index parfois vu corrompu (`unknown index entry format`) côté Linux. →
+  Faire les commit/push **sous Windows**. Réparer un index corrompu : `Remove-Item
+  .git\index -Force ; git reset` (reconstruit depuis HEAD, ne touche pas les fichiers).
+- **Hygiène parent** : pas de `.gitignore` racine à l'origine → `wheelsys-reporting/
+  node_modules` avait été versionné. `.gitignore` racine ajouté le 2026-06-25 (node_modules,
+  .env, logs, build, .vercel) ; purge via `git rm -r --cached wheelsys-reporting/node_modules`.
 
 ---
 _Liés : [instructions.md](./instructions.md) · [ROADMAP.md](./ROADMAP.md)_
