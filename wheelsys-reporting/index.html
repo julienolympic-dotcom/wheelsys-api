@@ -285,7 +285,7 @@
     .stat-tile {
       background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%); color: #fff;
       border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 14px rgba(26,46,74,.18);
-      min-height: 112px; display: flex; flex-direction: column; justify-content: center;
+      min-height: 112px; width: 100%; display: flex; flex-direction: column; justify-content: center;
       opacity: 0; transform: translateY(8px); transition: opacity .4s ease, transform .4s ease;
     }
     .stat-tile.in { opacity: 1; transform: translateY(0); }
@@ -1787,7 +1787,7 @@ function renderStats(factureRaw, enCoursActuel, impayeItems, from, to, opts) {
         target.toLocaleString('fr-FR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + suffix;
     });
     document.querySelectorAll('#section-stats .agence-card').forEach(c => c.classList.add('in'));
-    document.querySelectorAll('#section-stats [data-target]').forEach(elm => {
+    document.querySelectorAll('#section-stats [data-target]:not(.stat-tile)').forEach(elm => {
       const isHeight = elm.classList.contains('podium-bar');
       elm.style[isHeight ? 'height' : 'width'] = elm.dataset.target;
     });
@@ -2162,13 +2162,17 @@ function playStatsAnimations() {
     setTimeout(() => card.classList.add('in'), 40 + i * 70);
   });
 
-  root.querySelectorAll('[data-target]').forEach(elm => {
+  // ⚠️ .stat-tile porte aussi data-target (pour son count-up, géré au-dessus) —
+  // exclu explicitement ici, sinon ce sélecteur générique lui écrase sa largeur
+  // en style inline (width:0 jamais restauré, "71557" n'étant pas une largeur
+  // CSS valide) et casse tout le layout de la grille de tuiles.
+  root.querySelectorAll('[data-target]:not(.stat-tile)').forEach(elm => {
     const isHeight = elm.classList.contains('podium-bar');
     elm.style[isHeight ? 'height' : 'width'] = '0';
   });
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      root.querySelectorAll('[data-target]').forEach(elm => {
+      root.querySelectorAll('[data-target]:not(.stat-tile)').forEach(elm => {
         const isHeight = elm.classList.contains('podium-bar');
         elm.style[isHeight ? 'height' : 'width'] = elm.dataset.target;
       });
