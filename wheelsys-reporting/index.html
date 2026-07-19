@@ -305,7 +305,11 @@
     .insight-empty { color: var(--muted); font-size: 12.5px; }
 
     /* ── Cartes agence + podium ── */
-    .agence-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }
+    /* minmax(280px, 420px) plutôt que 1fr : avec 1 ou 2 agences seulement
+       (ex. période/filtre étroit), les cartes ne doivent pas s'étirer sur
+       toute la largeur — elles gardent une taille raisonnable et se collent
+       à gauche au lieu de laisser un podium minuscule perdu dans un cadre géant. */
+    .agence-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 420px)); gap: 16px; margin-bottom: 20px; }
     .agence-card {
       background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
       opacity: 0; transform: translateY(10px); transition: opacity .4s ease, transform .4s ease;
@@ -1826,7 +1830,7 @@ function statsTilesHtml(agg, from, to) {
         <div class="stat-tile-value">0</div>
         <div class="stat-tile-sub">${escHtml(agg.agences.map(a => a.code).join(' · '))}</div>
       </div>
-      <div class="stat-tile" data-target="${agg.totalLongueDureeCaHT}" data-decimals="0" data-suffix=" €" style="background:linear-gradient(135deg,#37474f 0%,#263238 100%)">
+      <div class="stat-tile" data-target="${agg.totalLongueDureeCaHT}" data-decimals="0" data-suffix=" €">
         <div class="stat-tile-icon">🕐</div>
         <div class="stat-tile-label">Longue durée en cours</div>
         <div class="stat-tile-value">0 €</div>
