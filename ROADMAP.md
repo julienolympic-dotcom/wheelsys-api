@@ -87,37 +87,44 @@
       D-026, KNOWLEDGE §4.1/§4.1ter.
 - [x] "Aide à la décision" repliable/regroupable (par thématique ou par
       agence) au lieu d'un empilement à plat — D-026.
-- [ ] **Reste à faire** (bloquant pour rebrancher le lien client ET pour le futur
-      module "Credit rating", cf. Phase 10 ci-dessous) : session de découverte
-      live dédiée pour confirmer le contrat d'appel de `POST
-      /api/entities/globalsearch` (résout le vrai `entityId` + type
-      Corporate/Driver — piste identifiée mais body POST exact non confirmé,
-      essais `searchTerm`/`term`/`query`/`q`/`text` tous en 500) et de
-      `partner.aspx/getPartnerInfo` (vrai endpoint de lecture fiche client,
-      remplace `corporate.aspx/GetEntityData` qui semble mort côté serveur).
+- [x] Lien client rebranché pour de vrai (D-027, 2026-07-19) : contrat de
+      `POST /api/entities/globalsearch` confirmé en direct par Julien
+      (form-urlencoded, `searchIndex=%<terme>%&exact=F`), nouvel endpoint
+      `api/resolve-client.js`, `clientLink()`/`openClientInWheelsys()` dans
+      `index.html` résolvent le vrai `entityId` au clic et ouvrent la bonne
+      fiche (`corporate.aspx`/`driver.aspx`) dans un nouvel onglet. Lecture
+      `partner.aspx/getPartnerInfo` confirmée aussi. Détail : DECISIONS.md
+      D-027, KNOWLEDGE §4.1.
 - [ ] Seuils de concentration 40 %/60 % (indicatifs, non validés) et seuil
       longue durée 30 jours — à ajuster si besoin dans `STATS_LONGUE_DUREE_JOURS`.
 - [ ] Relire le diff (`index.html` + `DECISIONS.md`/`KNOWLEDGE.md`) et
       committer/déployer (`wheelsys-reporting/deploy.bat`) si validé.
 
-## Phase 10 — Module "Credit rating" (délai de paiement client) 🔜 — PLAN À ÉCRIRE
+## Phase 10 — Module "Credit rating" (délai de paiement client) — approche assistée ✅ base posée 2026-07-19
 > Demande Julien (2026-07-19) : depuis Stats clients, ouvrir une fenêtre de
 > paramétrage du délai de paiement (Credit rating) d'un client, et que la
-> sélection mette à jour la fiche directement dans wheelsys. **Première
-> fonctionnalité d'écriture du projet** (tout le reste est lecture seule).
-- [ ] **Bloqué tant que non résolu** (D-026) : identification fiable du bon
-      client wheelsys (`entityId` réel, pas le numéro de compte) — écrire sur
-      le mauvais `entityId` modifierait le compte d'un **autre client réel**
-      en production.
-- [ ] Session de découverte live (même rigueur que D-025) pour confirmer :
-      (1) contrat d'appel `/api/entities/globalsearch`, (2) lecture du délai
-      de paiement actuel (`getPartnerInfo` ou équivalent, `corporate.aspx/GetEntityData`
-      confirmé mort), (3) endpoint d'écriture (pas encore identifié) + son
-      contrat exact (quel champ, quelles valeurs autorisées pour "Credit
-      rating").
-- [ ] Une fois les endpoints confirmés : UI (fenêtre de sélection du délai,
-      confirmation explicite avant écriture — action irréversible sur données
-      de production réelles), plan détaillé à proposer à Julien avant tout code.
+> sélection mette à jour la fiche directement dans wheelsys.
+- [x] Découverte live complète (D-027) : lecture (`getPartnerInfo`),
+      résolution client (`globalsearch`), et écriture (postback ASP.NET
+      `corporate.aspx` à ~100 champs, champ cible `corporateCreditRating_combo`
+      confirmé, options vues : VRT Récep Facture / 30J DDF / 45J DDF /
+      Atradius / Comptant / Ne plus louer / Prélèvement).
+- [x] **Décision de Julien** : pas d'écriture automatique depuis notre
+      backend (postback à ~100 champs jugé trop fragile/risqué). Approche
+      **assistée** retenue : le module ouvre directement la bonne fiche
+      wheelsys (via `api/resolve-client.js`, déjà livré) ; Julien/son équipe
+      change la valeur et clique Save eux-mêmes dans wheelsys.
+- [x] Brique de base livrée : clic sur un nom client dans Stats → ouvre la
+      vraie fiche wheelsys (`clientLink()`/`openClientInWheelsys()`).
+- [ ] Reste à faire si utile un jour : un bouton dédié "Configurer le délai
+      de paiement" à côté du nom (plutôt que de réutiliser le clic sur le
+      nom), qui ouvrirait directement sur l'onglet General avec le champ
+      Credit rating mis en évidence — amélioration UX, pas bloquant.
+- [ ] Si Julien change d'avis sur l'écriture automatique un jour : repartir
+      du postback déjà capturé (D-027) plutôt que de le redécouvrir, mais
+      prévoir un vrai travail d'ingénierie (générer dynamiquement les ~100
+      champs à partir de l'état courant lu, pas un template figé qui dérive
+      dès que wheelsys change son formulaire).
 
 ## Phase 8 — Reporting email automatique par agence 🔜
 > Paramétrable : fréquence, destinataires, seuil d'alerte.

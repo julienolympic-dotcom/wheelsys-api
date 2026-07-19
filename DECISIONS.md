@@ -954,6 +954,64 @@
   (envoyer Julien vers la fiche d'un autre client) est disproportionné par
   rapport au confort d'un lien cliquable.
 
+## D-027 — Résolution du vrai entityId débloquée, lien client réparé (approche assistée), écriture reportée
+
+- **Date** : 2026-07-19 (même jour que D-026, suite directe)
+- **Contrat de `/api/entities/globalsearch` confirmé par Julien** (capture
+  DevTools en direct sur sa vraie session) : `POST`, **form-urlencoded** (pas
+  JSON — c'est ce qui faisait échouer toutes mes tentatives précédentes),
+  corps `searchIndex=%<terme>%&exact=F` (le terme est entouré de `%` façon
+  SQL `LIKE`, `exact=F` = recherche floue). Réponse : tableau de
+  `{Id, Domain, DisplayValue, EntryType}` — `Id` est le vrai `entityId`,
+  `EntryType` (`"Corporate"` / `"Driver"` confirmés) indique la page cible
+  (`corporate.aspx` / `driver.aspx`).
+- **Lecture confirmée aussi** : `POST partner.aspx/getPartnerInfo` avec
+  `{tenantId: 387, partnerId: "<entityId>"}` → 200, testé sur deux clients
+  différents. `tenantId` semble une constante fixe par tenant wheelsys (à
+  reconfirmer si un jour utile, non exploité pour l'instant).
+- **Écriture (Credit rating)** : capturée en direct par Julien — postback
+  ASP.NET AJAX complet vers `corporate.aspx?modal=1&entityId=<id>`,
+  nécessitant un `cachekey` frais lié à un chargement de page précis et le
+  renvoi de **tous les champs du formulaire** (~100, y compris des grilles
+  encodées en JSON) avec une seule valeur modifiée
+  (`corporateCreditRating_combo` — confirmé être le bon champ, menu avec au
+  moins : VRT Récep Facture, 30J DDF, 45J DDF, Atradius, Comptant, Ne plus
+  louer, Prélèvement).
+- **Décision (choix explicite de Julien, question posée directement)** :
+  **approche assistée**, pas d'écriture automatique. Reproduire le postback à
+  ~100 champs depuis un backend serverless est jugé trop fragile (casse
+  silencieusement si wheelsys change son formulaire) et trop risqué (une
+  erreur de champ peut toucher autre chose que le Credit rating sur la fiche
+  d'un vrai client). Le module ouvrira directement la bonne fiche wheelsys
+  (via la résolution ci-dessus) ; c'est Julien/son équipe qui change la
+  valeur et clique Save eux-mêmes dans wheelsys. Aucune écriture depuis notre
+  code.
+- **Implémenté** :
+  - `api/resolve-client.js` (nouveau fichier, endpoint Vercel dédié) : reçoit
+    `{name}`, appelle `globalsearch` avec le cookie wheelsys de la session
+    app (même pattern d'auth que `api/report.js`), retourne les candidats
+    `{id, type, label, url}` (URL déjà construite selon `EntryType`).
+  - `index.html` : `clientLink(r)` construit un élément cliquable
+    (`.client-open`) au lieu du texte simple du stopgap D-026. Au clic,
+    `openClientInWheelsys(name, el)` appelle `/api/resolve-client`, prend le
+    résultat dont le `label` contient le nom recherché (repli sur le premier
+    résultat si aucun ne correspond exactement), et ouvre son `url` dans un
+    nouvel onglet. 0 résultat → message clair invitant à chercher
+    manuellement dans wheelsys plutôt qu'un lien mort silencieux.
+  - QA faite dans le Browser pane avec `fetch('/api/resolve-client')` mocké
+    (0 résultat et 1 résultat) — comportement vérifié correct dans les deux
+    cas ; pas de test live supplémentaire nécessaire, le contrat vient d'une
+    capture réelle de Julien, pas d'une supposition.
+- **Sécurité** : les cURL partagés par Julien pour cette découverte
+  contenaient un cookie de session wheelsys actif et des données personnelles
+  réelles d'un client (nom, email, téléphone, 4 derniers chiffres CB) — rien
+  de tout ça n'a été copié dans le code ni dans la documentation ; seuls les
+  noms de champs et la structure des requêtes sont retenus ici.
+- **Reste non fait** (volontairement, cf. décision ci-dessus) : aucune
+  écriture automatique du Credit rating. Si Julien change d'avis plus tard,
+  repartir du postback capturé (référencé dans l'historique de conversation,
+  pas dans ce fichier) plutôt que de le redécouvrir.
+
 ---
 _Liés : [instructions.md](./instructions.md) · [KNOWLEDGE.md](./KNOWLEDGE.md) ·
 [ROADMAP.md](./ROADMAP.md)_

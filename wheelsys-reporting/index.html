@@ -148,6 +148,10 @@
 
     .link { color: var(--navy); font-weight: 600; text-decoration: none; }
     .link:hover { text-decoration: underline; }
+    .client-open { cursor: pointer; }
+    .client-open:hover { text-decoration: underline; color: var(--navy); }
+    .client-open-icon { font-size: 10px; opacity: .45; margin-left: 4px; }
+    .client-open:hover .client-open-icon { opacity: .8; }
     .pill {
       display: inline-block; padding: 2px 8px; border-radius: 12px;
       font-size: 11px; font-weight: 600;
@@ -1478,22 +1482,56 @@ function TENANT() {
   return wlsTenant || 'lutam';
 }
 
-// Lien désactivé (2026-07-19) : `r.clientEntityId` (alimenté par `partner_codeid`
-// côté invoicesauditreport, `corporatecodeid`/`drivercodeid` côté
+// D-026 : `r.clientEntityId` (alimenté par `partner_codeid` côté
+// invoicesauditreport, `corporatecodeid`/`drivercodeid` côté
 // rentalagreementfinancials) est en réalité le NUMÉRO DE COMPTE affiché
 // ("Corporate Customer - 1457"), pas le vrai entityId interne wheelsys utilisé
 // dans manage/master/*.aspx?entityId= (confirmé en direct : BG GLOBAL réf. 1457
 // / vrai entityId 69511 ; Philippe MALHEIROS réf. 1211 / vrai entityId 48836).
-// En plus, corporate.aspx ne convient qu'aux clients "Corporate" — un client
-// particulier ("Driver") a sa fiche sur driver.aspx, jamais corporate.aspx.
-// Un lien construit avec ces infos pointe donc vers "Record not found" ou,
-// pire, vers la fiche d'un AUTRE client par coïncidence d'ID. Tant que la
-// résolution du vrai entityId n'est pas rebranchée (piste identifiée :
-// POST /api/entities/globalsearch, retourne {Id, EntryType, DisplayValue} —
-// contrat d'appel exact pas encore confirmé), on affiche le nom en texte
-// simple plutôt qu'un lien qui trompe l'utilisateur. Voir DECISIONS.md D-026.
+// Donc pas de lien direct construit côté client. À la place : clic → résolution
+// à la demande via /api/resolve-client (proxy de la recherche globale wheelsys,
+// POST /api/entities/globalsearch — contrat confirmé en direct par Julien) →
+// ouverture de la vraie fiche (corporate.aspx ou driver.aspx selon EntryType).
+// Approche assistée, pas d'écriture : l'utilisateur modifie et enregistre
+// lui-même dans wheelsys une fois sur la fiche (choix Julien, module Credit
+// rating).
 function clientLink(r) {
-  return escHtml(r.client || '—');
+  const name = r.client || '—';
+  if (!r.client) return escHtml(name);
+  return `<span class="client-open" onclick="openClientInWheelsys('${escJs(r.client)}', this)" title="Chercher et ouvrir dans wheelsys">${escHtml(name)}<span class="client-open-icon">🔍</span></span>`;
+}
+
+async function openClientInWheelsys(name, el) {
+  const icon = el.querySelector('.client-open-icon');
+  if (icon) icon.textContent = '⏳';
+  el.style.pointerEvents = 'none';
+  try {
+    const resp = await fetch('/api/resolve-client', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ name }),
+    });
+    const json = await resp.json();
+    if (resp.status === 401) { window.location.href = '/login.html'; return; }
+    if (!resp.ok || !json.ok) throw new Error(json.error || 'Erreur inconnue');
+
+    const results = json.results || [];
+    if (results.length === 0) {
+      alert(`Aucune fiche trouvée dans wheelsys pour « ${name} ». Cherchez-le manuellement dans la barre de recherche wheelsys.`);
+      return;
+    }
+    const nameLc = name.toLowerCase();
+    const best = results.find(r => (r.label || '').toLowerCase().includes(nameLc)) || results[0];
+    window.open(best.url, '_blank', 'noopener');
+    if (results.length > 1) {
+      console.warn(`Plusieurs fiches wheelsys correspondent à "${name}" — ouverture de la plus proche (${best.label}). Vérifiez que c'est le bon client une fois sur wheelsys.`, results);
+    }
+  } catch (e) {
+    alert('Erreur lors de la recherche dans wheelsys : ' + e.message);
+  } finally {
+    if (icon) icon.textContent = '🔍';
+    el.style.pointerEvents = '';
+  }
 }
 
 function paymentDelayBadge(r) {

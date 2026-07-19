@@ -98,15 +98,22 @@ l'`entityId` réel (`corporate.aspx?entityId=`**69511**` / `driver.aspx?entityId
 pour ces deux mêmes clients, vérifié en direct). Construire un lien
 `corporate.aspx?entityId=<corporatecodeid>` pointe donc vers "Record not
 found" ou, par coïncidence numérique, vers la fiche d'un **autre client**.
-Piste de résolution identifiée mais pas encore branchée : `POST
+✅ **Résolution branchée (D-027, 2026-07-19)** : `POST
 /api/entities/globalsearch` (utilisé par la barre de recherche globale
-wheelsys) renvoie `{Id, Domain, DisplayValue, EntryType}` où `Id` est le vrai
-`entityId` et `EntryType` (`"Driver"` / `"Corporate"` confirmés) indique
-`driver.aspx` vs `corporate.aspx`. Contrat d'appel exact (nom du champ dans le
-body POST) pas encore confirmé — 500 générique sur les essais `searchTerm`/
-`term`/`query`/`q`/`text`. Voir DECISIONS.md D-026 pour le détail complet.
-Conséquence pratique : `clientLink()` dans `index.html` n'affiche plus de
-lien cliquable (juste le nom en texte) tant que ça n'est pas corrigé.
+wheelsys), **form-urlencoded** (pas JSON), corps `searchIndex=%<terme>%&exact=F`
+(terme entouré de `%`, recherche floue). Renvoie `{Id, Domain, DisplayValue,
+EntryType}` où `Id` est le vrai `entityId` et `EntryType` (`"Driver"` /
+`"Corporate"` confirmés) indique `driver.aspx` vs `corporate.aspx`. Contrat
+confirmé en direct par Julien (capture DevTools sur sa session). Implémenté
+dans `api/resolve-client.js` (nouvel endpoint dédié), branché dans
+`clientLink()`/`openClientInWheelsys()` (`index.html`) : clic sur un nom
+client dans Stats → résout l'entityId → ouvre la vraie fiche wheelsys dans un
+nouvel onglet. Lecture aussi confirmée : `POST partner.aspx/getPartnerInfo`
+avec `{tenantId:387, partnerId:"<entityId>"}` → 200. Écriture (champ "Credit
+rating" = `corporateCreditRating_combo`, confirmé) volontairement **non
+automatisée** : c'est un postback ASP.NET à ~100 champs, jugé trop fragile —
+Julien a choisi l'approche assistée (on ouvre la fiche, lui/son équipe modifie
+et sauvegarde dans wheelsys). Détail complet : DECISIONS.md D-027.
 
 ⚠️ **PIÈGE MAJEUR** : `excess` = franchise assurance, PAS la caution réelle.
 La caution réelle = pré-autorisation CB → voir rapport `preauthorizations`.
