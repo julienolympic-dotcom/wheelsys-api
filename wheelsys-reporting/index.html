@@ -58,7 +58,9 @@
     .btn-primary:disabled { opacity: .5; cursor: default; }
 
     /* ── Main ── */
-    main { max-width: 1280px; margin: 24px auto; padding: 0 24px; }
+    main { max-width: 1280px; margin: 24px auto; padding: 0 24px; transition: max-width .15s; }
+    /* Cockpit flotte : beaucoup de colonnes → plus de largeur disponible */
+    main.tab-flotte-wide { max-width: 1800px; }
 
     /* ── Tabs ── */
     .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 20px; }
@@ -94,6 +96,31 @@
     .card-value.ok     { color: var(--green); }
     .card-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
 
+    /* ── D-017 — Sous-nav sticky du cockpit (accès direct aux sections) ── */
+    .flotte-subnav {
+      position: sticky; top: 0; z-index: 4; display: flex; gap: 6px; flex-wrap: wrap;
+      background: #fff; border: 1px solid var(--border); border-radius: 8px;
+      padding: 8px 10px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,.05);
+    }
+    .flotte-subnav a {
+      font-size: 12px; font-weight: 600; color: var(--navy); text-decoration: none;
+      padding: 5px 10px; border-radius: 6px; background: #f0f2f6; white-space: nowrap;
+    }
+    .flotte-subnav a:hover { background: #e3e8f0; }
+
+    /* ── D-017 — Mini-cartes (vignette prochaines sorties, top/flop catégories) ── */
+    .mini-card-row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .mini-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 12px; min-width: 150px; flex: 0 0 auto;
+    }
+    .mini-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+    .mini-card-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .mini-card.clickable { cursor: pointer; transition: box-shadow .15s, transform .15s; }
+    .mini-card.clickable:hover { box-shadow: 0 2px 8px rgba(0,0,0,.12); transform: translateY(-1px); }
+    .row-flash { animation: rowFlash 1.8s ease-out; }
+    @keyframes rowFlash { 0%, 40% { background: #fff3cd; } 100% { background: transparent; } }
+
     /* ── Status banner ── */
     .status-ok, .status-err {
       padding: 12px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; margin-bottom: 16px;
@@ -103,6 +130,11 @@
 
     /* ── Table ── */
     .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+    /* Barre de défilement horizontal dupliquée en haut (tables larges avec
+       beaucoup de lignes : la barre native en bas de .table-wrap est hors
+       écran tant qu'on n'a pas scrollé jusqu'en bas de la page). */
+    .table-scroll-top { overflow-x: auto; overflow-y: hidden; height: 16px; margin-bottom: 4px; }
+    .table-scroll-top > div { height: 1px; }
     table { width: 100%; border-collapse: collapse; background: var(--card); font-size: 13px; }
     thead th {
       padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700;
@@ -124,6 +156,24 @@
     .pill-green { background: #e8f5e9; color: var(--green); }
     .pill-blue  { background: #e3f2fd; color: var(--blue); }
     .pill-grey  { background: #f0f2f6; color: var(--muted); }
+
+    /* ── Plan de commande : détail dépliable des véhicules à rendre ── */
+    .btn-toggle-row {
+      width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--border);
+      background: #fff; color: var(--navy); font-size: 13px; font-weight: 700;
+      cursor: pointer; line-height: 1; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .btn-toggle-row:hover { background: #eef2fb; border-color: var(--navy); }
+    tr.renouv-detail-row td { background: #f9fafc; padding: 4px 14px 14px 42px; white-space: normal; }
+    .renouv-veh-item {
+      display: flex; align-items: center; gap: 12px; padding: 7px 0;
+      border-bottom: 1px solid #eef0f4; font-size: 12.5px;
+    }
+    .renouv-veh-item:last-child { border-bottom: none; }
+    .renouv-veh-plate  { font-weight: 700; min-width: 96px; }
+    .renouv-veh-agence { color: var(--muted); min-width: 40px; }
+    .renouv-veh-date   { min-width: 92px; }
 
     .amount-danger { color: var(--red); font-weight: 700; }
     .amount-ok     { color: var(--green); font-weight: 600; }
@@ -199,6 +249,16 @@
     .cell-sub  { font-size: 11px; color: var(--muted); margin-top: 3px; }
     .cell-sub .pill { font-size: 10px; }
 
+    /* ── Colonne 1 figée au défilement horizontal (tables très larges) ── */
+    .tbl-sticky-col1 th:first-child,
+    .tbl-sticky-col1 td:first-child {
+      position: sticky; left: 0; z-index: 1;
+      box-shadow: 2px 0 4px rgba(0,0,0,.06);
+    }
+    .tbl-sticky-col1 thead th:first-child { z-index: 2; background: #f9fafc; }
+    .tbl-sticky-col1 tbody td:first-child { background: var(--card); }
+    .tbl-sticky-col1 tbody tr:hover td:first-child { background: #f5f7fb; }
+
     /* ── Exemptions caution ── */
     .btn-exempt {
       height: 26px; padding: 0 10px; border: 1px solid #c8e6c9;
@@ -219,6 +279,78 @@
       color: var(--muted); font-size: 11px; padding: 0 2px; line-height: 1;
     }
     .btn-remove-exempt:hover { color: var(--red); }
+
+    /* ── Stats clients — tuiles animées ── */
+    .stat-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+    .stat-tile {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%); color: #fff;
+      border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 14px rgba(26,46,74,.18);
+      min-height: 112px; display: flex; flex-direction: column; justify-content: center;
+      opacity: 0; transform: translateY(8px); transition: opacity .4s ease, transform .4s ease;
+    }
+    .stat-tile.in { opacity: 1; transform: translateY(0); }
+    .stat-tile-icon  { font-size: 19px; opacity: .85; margin-bottom: 4px; }
+    .stat-tile-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; opacity: .75; margin-bottom: 4px; }
+    .stat-tile-value { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .stat-tile-sub   { font-size: 11px; opacity: .7; margin-top: 4px; }
+
+    /* ── Panneau aide à la décision ── */
+    .insight-panel {
+      background: #fff; border: 1px solid var(--border); border-left: 4px solid var(--navy);
+      border-radius: 8px; padding: 14px 18px; margin-bottom: 20px;
+    }
+    .insight-panel h3 { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+    .insight-item { font-size: 12.5px; line-height: 1.5; padding: 6px 0; }
+    .insight-item + .insight-item { border-top: 1px dashed var(--border); }
+    .insight-empty { color: var(--muted); font-size: 12.5px; }
+
+    /* ── Cartes agence + podium ── */
+    .agence-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }
+    .agence-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
+      opacity: 0; transform: translateY(10px); transition: opacity .4s ease, transform .4s ease;
+    }
+    .agence-card.in { opacity: 1; transform: translateY(0); }
+    .agence-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+    .agence-card-title { font-size: 14px; font-weight: 700; color: var(--navy); }
+    .agence-card-ca { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+    .concentration-badge { font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 10px; white-space: nowrap; }
+    .concentration-high { background: #ffebee; color: var(--red); }
+    .concentration-mid  { background: #fff3e0; color: #e65100; }
+    .concentration-low  { background: #e8f5e9; color: var(--green); }
+
+    .podium { display: flex; align-items: flex-end; justify-content: center; gap: 8px; height: 150px; margin-bottom: 10px; }
+    .podium-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; width: 33%; height: 100%; }
+    .podium-bar {
+      width: 100%; border-radius: 6px 6px 0 0; height: 0; min-height: 0;
+      transition: height .6s cubic-bezier(.34,1.56,.64,1);
+    }
+    .podium-1 .podium-bar { background: linear-gradient(180deg,#ffd54f,#ffb300); }
+    .podium-2 .podium-bar { background: linear-gradient(180deg,#e0e0e0,#bdbdbd); }
+    .podium-3 .podium-bar { background: linear-gradient(180deg,#ffab91,#e64a19); }
+    .podium-medal  { font-size: 18px; line-height: 1; }
+    .podium-name   { font-size: 11px; font-weight: 600; color: var(--text); text-align: center; margin-top: 4px; max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .podium-name a { color: var(--text); }
+    .podium-amount { font-size: 10.5px; color: var(--muted); margin-top: 1px; }
+
+    .agence-rank-list { display: flex; flex-direction: column; gap: 5px; }
+    .agence-rank-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .agence-rank-num  { width: 20px; color: var(--muted); font-weight: 700; font-size: 11px; flex: none; }
+    .agence-rank-bar-track { flex: 1; height: 6px; background: #f0f2f6; border-radius: 3px; overflow: hidden; }
+    .agence-rank-bar-fill  { height: 100%; background: var(--blue); border-radius: 3px; width: 0; transition: width .6s ease; }
+    .agence-rank-name   { flex: 0 0 auto; max-width: 118px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .agence-rank-amount { flex: 0 0 auto; font-weight: 600; font-size: 11.5px; min-width: 62px; text-align: right; }
+    .agence-card-footer { margin-top: 10px; text-align: right; }
+
+    /* ── Objectif éditable + progression (donnée locale, jamais mélangée aux chiffres wheelsys) ── */
+    .objectif-input {
+      width: 92px; height: 26px; border: 1px solid var(--border); border-radius: 5px;
+      padding: 0 6px; font-size: 12px; text-align: right; background: #fffde7;
+    }
+    .objectif-input:focus { border-color: var(--navy); outline: none; }
+    .progress-bar-wrap  { display: flex; align-items: center; gap: 6px; min-width: 108px; }
+    .progress-bar-track { flex: 1; height: 7px; background: #f0f2f6; border-radius: 4px; overflow: hidden; }
+    .progress-bar-fill  { height: 100%; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -232,7 +364,7 @@
   </div>
 </header>
 
-<div class="filters-bar">
+<div class="filters-bar" id="filters-bar">
   <div class="filter-group">
     <label>Date début</label>
     <input type="date" id="date-from">
@@ -284,6 +416,14 @@
       📋 Tous les contrats
       <span class="badge badge-blue hidden" id="badge-all">0</span>
     </button>
+    <button class="tab" id="tab-stats" onclick="showTab('stats')">
+      📊 Stats clients
+      <span class="badge badge-red hidden" id="badge-stats">0</span>
+    </button>
+    <button class="tab" id="tab-flotte" onclick="showTab('flotte')">
+      🎯 Cockpit flotte
+      <span class="badge badge-red hidden" id="badge-flotte">0</span>
+    </button>
   </div>
 
   <!-- Sections -->
@@ -298,6 +438,12 @@
   </div>
   <div id="section-all" class="hidden">
     <div class="empty">Sélectionnez une période et cliquez sur <strong>Charger les données</strong>.</div>
+  </div>
+  <div id="section-stats" class="hidden">
+    <div class="empty">Sélectionnez une période et cliquez sur <strong>Charger les données</strong>.</div>
+  </div>
+  <div id="section-flotte" class="hidden">
+    <div class="empty">Ouverture du plan de flotte…</div>
   </div>
 </main>
 
@@ -319,23 +465,42 @@ function initSortableTable(id, data, cols, renderRow) {
   tableState[id] = {
     data, cols, renderRow,
     sortCol: null, sortDir: 'asc', filter: '',
+    dropdownFilters: {}, // { champ: valeur } — voir setTableFilter, vide = pas de filtre dropdown
   };
   _bindTableEvents(id);
   _renderTable(id);
 }
 
-function _renderTable(id) {
-  const s = tableState[id];
-  if (!s) return;
-  let rows = [...s.data];
-
-  // ── Filtre texte ──
+// Applique filtres dropdown (égalité exacte, ignore les valeurs vides) + recherche
+// texte libre. Partagé entre le rendu écran et l'export Excel pour ne jamais diverger.
+function _applyFilters(rows, s) {
+  const dd = s.dropdownFilters || {};
+  const activeKeys = Object.keys(dd).filter(k => dd[k]);
+  if (activeKeys.length) {
+    rows = rows.filter(r => activeKeys.every(k => String(r[k] ?? '') === String(dd[k])));
+  }
   if (s.filter) {
     const q = s.filter.toLowerCase();
     rows = rows.filter(r =>
       s.cols.some(c => String(r[c.key] ?? '').toLowerCase().includes(q))
     );
   }
+  return rows;
+}
+
+// Filtre dropdown générique (agence/classe/action/urgence…) — combinable avec la
+// recherche texte existante et avec les autres filtres dropdown de la même table.
+function setTableFilter(id, key, value) {
+  const s = tableState[id];
+  if (!s) return;
+  s.dropdownFilters[key] = value;
+  _renderTable(id);
+}
+
+function _renderTable(id) {
+  const s = tableState[id];
+  if (!s) return;
+  let rows = _applyFilters([...s.data], s);
 
   // ── Tri ──
   if (s.sortCol) {
@@ -353,17 +518,18 @@ function _renderTable(id) {
   }
 
   // ── Mise à jour tbody ──
+  const hasActiveFilter = !!s.filter || Object.values(s.dropdownFilters || {}).some(Boolean);
   const tbody = document.getElementById(id + '-tbody');
   if (tbody) {
     tbody.innerHTML = rows.length > 0
       ? rows.map(s.renderRow).join('')
-      : `<tr><td colspan="${s.cols.length + 1}" class="no-results">Aucun résultat pour « ${escHtml(s.filter)} »</td></tr>`;
+      : `<tr><td colspan="${s.cols.length + 1}" class="no-results">Aucun résultat${s.filter ? ` pour « ${escHtml(s.filter)} »` : ' pour ces filtres'}</td></tr>`;
   }
 
   // ── Compteur ──
   const countEl = document.getElementById(id + '-count');
   if (countEl) {
-    countEl.textContent = s.filter
+    countEl.textContent = hasActiveFilter
       ? `${rows.length} / ${s.data.length} résultat${rows.length !== 1 ? 's' : ''}`
       : `${s.data.length} résultat${s.data.length !== 1 ? 's' : ''}`;
   }
@@ -444,6 +610,10 @@ function th(col, label) {
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+// Échappe une valeur pour l'insérer dans un attribut onclick="...('valeur')"
+function escJs(s) {
+  return String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
 
 // ─── Init + vérif session ─────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
@@ -490,6 +660,7 @@ function fmt(d) {
 }
 function fmtEur(n) { return (n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
 function fmtDate(s) { return s ? s.slice(0, 10) : '—'; }
+function fmtKm(n) { return n != null ? Math.round(Number(n)).toLocaleString('fr-FR') + ' km' : '—'; }
 
 // ─── Chargement ───────────────────────────────────────────────────────────────
 async function loadData() {
@@ -535,12 +706,13 @@ async function loadData() {
 
     renderAll(json, from, to);
     renderAllContracts(json.allRaw || [], from, to);
+    renderStats(json.factureRaw || [], json.enCoursActuel || [], json.impaye?.items || [], from, to);
 
     document.getElementById('last-update').textContent =
       'Mis à jour : ' + new Date().toLocaleTimeString('fr-FR');
 
   } catch (err) {
-    ['depart','caution','impaye','all'].forEach(t => {
+    ['depart','caution','impaye','all','stats'].forEach(t => {
       document.getElementById('section-' + t).innerHTML =
         `<div class="status-err">❌ Erreur : ${err.message}</div>`;
     });
@@ -551,7 +723,7 @@ async function loadData() {
 }
 
 function setLoading() {
-  ['depart','caution','impaye','all'].forEach(t => {
+  ['depart','caution','impaye','all','stats'].forEach(t => {
     document.getElementById('section-' + t).innerHTML =
       `<div class="empty"><div class="spinner"></div><br><br>Chargement en cours…</div>`;
   });
@@ -578,12 +750,22 @@ function updateStationSelect(stations) {
 }
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
+const ALL_TABS = ['depart','caution','impaye','all','stats','flotte'];
 function showTab(tab) {
   currentTab = tab;
-  ['depart','caution','impaye','all'].forEach(t => {
+  ALL_TABS.forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('active', t === tab);
     document.getElementById('section-' + t).classList.toggle('hidden', t !== tab);
   });
+  // Plan de flotte : indépendant des filtres date → on masque la barre de filtres
+  const fb = document.getElementById('filters-bar');
+  if (fb) fb.classList.toggle('hidden', tab === 'flotte');
+  // Cockpit flotte : beaucoup de colonnes → conteneur plus large
+  document.querySelector('main').classList.toggle('tab-flotte-wide', tab === 'flotte');
+  // Lazy-load au premier affichage de l'onglet flotte
+  if (tab === 'flotte' && !_flotteLoaded) loadFlotte();
+  // Rejoue les animations d'entrée (tuiles/podium) à chaque fois qu'on revient sur Stats
+  if (tab === 'stats' && _statsData) playStatsAnimations();
 }
 
 // ─── Rendu ────────────────────────────────────────────────────────────────────
@@ -1039,12 +1221,8 @@ function exportXlsx(tableId, filename) {
   const s = tableState[tableId];
   if (!s || !s.data.length) return alert('Aucune donnée à exporter.');
 
-  // Reproduire le filtre + tri courant
-  let rows = [...s.data];
-  if (s.filter) {
-    const q = s.filter.toLowerCase();
-    rows = rows.filter(r => s.cols.some(c => String(r[c.key] ?? '').toLowerCase().includes(q)));
-  }
+  // Reproduire les filtres (dropdown + texte) + tri courant
+  let rows = _applyFilters([...s.data], s);
   if (s.sortCol) {
     const col = s.cols.find(c => c.key === s.sortCol);
     if (col) {
@@ -1068,6 +1246,57 @@ function exportXlsx(tableId, filename) {
 }
 
 function flattenForExport(tableId, r) {
+  if (tableId === 'renouv-tbl') return {
+    'Classe':                r.classe   || '',
+    'Catégorie':             r.cargroup || '',
+    'Parc':                  r.nbVehicules ?? '',
+    'Classable':             r.classable ? 'Oui' : 'Non',
+    'Sorties prévues':       r.sortiesPrevues ?? 0,
+    'Sorties par mois':      r.sortiesParMoisTxt || '',
+    'Rotation 12 mois (%)':  r.rotation12Mois ?? '',
+    'Rotation détention (%)': r.rotationDetention ?? '',
+    'Coût/CA (%)':           r.ratioCoutCA ?? '',
+    'Verdict':               r.verdict || '',
+    'Justification':         r.justification || '',
+  };
+  if (tableId === 'stats-tbl') return {
+    'Rang (agence)':                    r.rangAgence,
+    'Client':                           r.client   || '',
+    'Agence':                           r.agence   || '',
+    'CA HT facturé (€)':                r.caHT     || 0,
+    'CA TTC facturé (€)':               r.caTTC    || 0,
+    'Factures':                         r.factures || 0,
+    'Avoirs':                           r.avoirs   || 0,
+    'Contrats distincts facturés':      r.contrats || 0,
+    'Panier moyen HT / facture (€)':    Math.round((r.panierMoyen || 0) * 100) / 100,
+    '% CA agence':                      Math.round(r.pctAgence || 0),
+    'Impayé 12 mois (€)':               r.impaye   || 0,
+    'Contrats longue durée en cours':   r.longueDureeCount || 0,
+    'CA longue durée en cours (€)':     r.longueDureeCaHT || 0,
+    'Objectif CA HT (€)':               r.objectif ?? '',
+    'Progression (%)':                  r.progression != null ? Math.round(r.progression) : '',
+  };
+  if (tableId === 'flotte-tbl') return {
+    'Plaque':           r.plateno  || '',
+    'Agence':           r.agence   || '',
+    'Catégorie':        r.cargroup || '',
+    'Type':             r.classe   || '',
+    'Kilométrage':      r.km ?? '',
+    'Action':           r.action   || '',
+    'Urgence':          r.urgence  || '',
+    'Priorité (score)': r.score ?? '',
+    'Raison':           r.raison   || '',
+    'Sortie prévue':    fmtDate(r.dateSortie),
+    'Source date':      ({ excel: 'Contrat Excel', excel_duree: 'Estimé (durée financement)', wheelsys: 'Estimé (règle générique)' })[r.sourceDateSortie] || '',
+    'Jours restants':   r.joursRestants,
+    'Saisonnier':       r.saisonnierApplique ? 'Oui' : 'Non',
+    'Utilisation (%)':  r.utilperc ?? '',
+    'Jours dispo (12 mois)': r.avdays ?? '',
+    'Type contrat':     r.typeContrat || '',
+    'Coût mensuel (€)': r.coutMensuel ?? '',
+    'Résiduelle (€)':   r.valeurResiduelle ?? '',
+    'Capital restant (€)': r.capitalRestant ?? '',
+  };
   const base = {
     'Contrat':      r.contrat  || '',
     'Client':       r.client   || '',
@@ -1309,6 +1538,1299 @@ function payModes(r) {
   return modes.length > 0
     ? modes.join(' ')
     : `<span class="pill pill-red">Aucun</span>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  STATS CLIENTS — CA facturé, par client et par agence (D-025, corrige D-024)
+//  Source : json.factureRaw (rapport wheelsys dédié `invoicesauditreport` —
+//  vrai grand livre facture, 1 ligne = 1 facture avec son propre montant et sa
+//  propre date d'émission, avoirs déjà inclus en négatif) + json.enCoursActuel
+//  (contrats "En cours" à ce jour, plage large fixe, INDÉPENDANTE de la période
+//  choisie — capte les locations longue durée démarrées avant la fenêtre mais
+//  toujours actives) + json.impaye.items (solde impayé 12 mois glissants,
+//  indépendant de la période — croisé uniquement pour signaler un risque,
+//  jamais utilisé comme CA).
+//  D-024 utilisait `rentalagreementfinancials` en mtdtype=1 : BUG confirmé en
+//  live (surestimation du CA sur les contrats multi-facturation, cf. D-025 dans
+//  DECISIONS.md) — remplacé par `invoicesauditreport`, testé en live et
+//  confirmé fiable (KNOWLEDGE.md §4.1ter).
+// ══════════════════════════════════════════════════════════════════════════════
+
+let _statsTopN  = 10;   // sélecteur 10/20/30 par agence (même pattern que D-017 Flotte)
+let _statsData  = null; // { factureRaw, enCoursActuel, impayeItems, from, to } — pour re-render sans recalcul réseau
+let _statsLastAgg = null; // dernière agrégation calculée — réutilisée par statsFilterToAgence
+
+// Seuils de concentration (Pareto top 3 clients / CA agence) — INDICATIFS,
+// jamais validés par Julien (cf. philosophie D-017 : pas de seuil absolu
+// inventé sans confirmation). Servent uniquement à attirer l'œil, pas une règle métier figée.
+const STATS_CONCENTRATION_ALERT = 60; // %
+const STATS_CONCENTRATION_WATCH = 40; // %
+
+// D-024 (Julien, 2026-07-19) : un contrat encore "En cours" est signalé comme
+// longue durée à partir de ce seuil (jours).
+const STATS_LONGUE_DUREE_JOURS = 30;
+
+// ── Objectifs de CA éditables par client (localStorage uniquement) ───────────
+// Donnée locale de suivi, JAMAIS mélangée aux chiffres réels wheelsys (D-019 :
+// « si je me base sur des données fausses il est impossible de piloter » —
+// on n'édite donc jamais caHT/caTTC, seulement cet objectif de comparaison).
+const STATS_OBJECTIFS_LS_KEY = 'wheelsys_stats_objectifs';
+
+function getStatsObjectifs() {
+  try { return JSON.parse(localStorage.getItem(STATS_OBJECTIFS_LS_KEY) || '{}'); }
+  catch { return {}; }
+}
+function saveStatsObjectifs(o) { localStorage.setItem(STATS_OBJECTIFS_LS_KEY, JSON.stringify(o)); }
+
+function setClientObjectif(key, value) {
+  const n = parseFloat(String(value).replace(',', '.'));
+  const objectifs = getStatsObjectifs();
+  if (!value || Number.isNaN(n) || n <= 0) delete objectifs[key];
+  else objectifs[key] = n;
+  saveStatsObjectifs(objectifs);
+  if (_statsData) renderStats(_statsData.factureRaw, _statsData.enCoursActuel, _statsData.impayeItems, _statsData.from, _statsData.to, { skipAnim: true });
+}
+
+function setStatsTopN(v) {
+  const n = parseInt(v, 10);
+  _statsTopN = [10, 20, 30].includes(n) ? n : 10;
+  if (_statsData) renderStats(_statsData.factureRaw, _statsData.enCoursActuel, _statsData.impayeItems, _statsData.from, _statsData.to);
+}
+
+// Durée (jours) d'un contrat encore en cours (json.enCoursActuel) — priorité
+// aux jours "courus" (accrueddays), repli sur `days` (durée prévue/booking)
+// puis calcul depuis checkoutdate.
+function statsDureeJours(r) {
+  if (r.accrueddays && r.accrueddays > 0) return r.accrueddays;
+  if (r.days && r.days > 0) return r.days;
+  if (!r.checkoutdate) return 0;
+  const start = new Date(r.checkoutdate);
+  if (Number.isNaN(start.getTime())) return 0;
+  return Math.max(0, Math.floor((Date.now() - start.getTime()) / 86400000));
+}
+
+// Agrège les factures (json.factureRaw) par agence puis par client (identité =
+// clientEntityId, sinon nom normalisé — même clé que itemExemptKey, réutilisée
+// pour rester cohérent avec le reste de l'app). Les avoirs (isCreditNote) sont
+// sommés tels quels (montant déjà négatif côté wheelsys) — le CA net se calcule
+// donc juste en additionnant, sans logique de soustraction séparée à maintenir.
+// Croise séparément json.enCoursActuel (D-025 — indépendant de la période) pour
+// le signal "longue durée en cours", y compris pour les clients sans aucune
+// facture sur la période choisie (jamais caché, cf. enCoursSansFacture).
+function computeStatsAggregation(factureRaw, enCoursActuel, impayeItems) {
+  const byAgence = new Map();
+  (factureRaw || []).forEach(r => {
+    const code = r.stationCode || 'INCONNU';
+    if (!byAgence.has(code)) byAgence.set(code, {
+      code, nom: r.station || code, caHT: 0, caTTC: 0, factures: 0, avoirs: 0, clients: new Map(),
+    });
+    const a = byAgence.get(code);
+    const key = itemExemptKey(r);
+    if (!a.clients.has(key)) a.clients.set(key, {
+      key, client: r.client || 'Inconnu', clientEntityId: r.clientEntityId || null,
+      caHT: 0, caTTC: 0, factures: 0, avoirs: 0, contratsSet: new Set(),
+    });
+    const c = a.clients.get(key);
+
+    a.caHT += r.caHT || 0;
+    a.caTTC += r.caTTC || 0;
+    c.caHT += r.caHT || 0;
+    c.caTTC += r.caTTC || 0;
+    if (r.isCreditNote) { a.avoirs++; c.avoirs++; } else { a.factures++; c.factures++; }
+    if (r.contrat) c.contratsSet.add(r.contrat);
+  });
+
+  // Contrats actifs à ce jour, longue durée uniquement (≥ seuil) — vue
+  // indépendante de la période, agrégée par client.
+  const enCoursParClient = new Map();
+  (enCoursActuel || []).forEach(r => {
+    const jours = statsDureeJours(r);
+    if (jours < STATS_LONGUE_DUREE_JOURS) return;
+    const key = itemExemptKey(r);
+    if (!enCoursParClient.has(key)) enCoursParClient.set(key, {
+      key, client: r.client || 'Inconnu', clientEntityId: r.clientEntityId || null,
+      caHT: 0, count: 0, joursMax: 0, station: r.station, stationCode: r.stationCode,
+    });
+    const e = enCoursParClient.get(key);
+    e.caHT += r.caHT || 0;
+    e.count++;
+    e.joursMax = Math.max(e.joursMax, jours);
+  });
+
+  const impayeByClient = new Map();
+  (impayeItems || []).forEach(r => {
+    const key = itemExemptKey(r);
+    impayeByClient.set(key, (impayeByClient.get(key) || 0) + (r.solde || 0));
+  });
+
+  const objectifs = getStatsObjectifs();
+
+  const agences = [...byAgence.values()].map(a => {
+    const clients = [...a.clients.values()]
+      .sort((x, y) => y.caHT - x.caHT)
+      .map((c, i) => {
+        const objectif = objectifs[c.key] ?? null;
+        const enCours = enCoursParClient.get(c.key) || null;
+        return {
+          ...c,
+          contrats: c.contratsSet.size,
+          rangAgence: i + 1,
+          panierMoyen: c.factures ? c.caHT / c.factures : 0,
+          pctAgence: a.caHT > 0 ? (c.caHT / a.caHT) * 100 : 0,
+          impaye: impayeByClient.get(c.key) || 0,
+          objectif,
+          progression: objectif ? (c.caHT / objectif) * 100 : null,
+          longueDureeCaHT: enCours ? enCours.caHT : 0,
+          longueDureeCount: enCours ? enCours.count : 0,
+          longueDureeJoursMax: enCours ? enCours.joursMax : 0,
+        };
+      });
+    const top3Sum = clients.slice(0, 3).reduce((s, c) => s + c.caHT, 0);
+    return {
+      ...a,
+      clients,
+      nbClients: clients.length,
+      concentrationTop3: a.caHT > 0 ? (top3Sum / a.caHT) * 100 : 0,
+    };
+  }).sort((a, b) => b.caHT - a.caHT);
+
+  const totalCaHT     = agences.reduce((s, a) => s + a.caHT, 0);
+  const totalCaTTC    = agences.reduce((s, a) => s + a.caTTC, 0);
+  const totalFactures = agences.reduce((s, a) => s + a.factures, 0);
+  const totalAvoirs   = agences.reduce((s, a) => s + a.avoirs, 0);
+  const totalClients  = new Set((factureRaw || []).map(r => itemExemptKey(r))).size;
+  const totalRows     = (factureRaw || []).length;
+  const totalLongueDureeCaHT = agences.reduce((s, a) => s + a.clients.reduce((s2, c) => s2 + c.longueDureeCaHT, 0), 0);
+  const totalLongueDureeCount = agences.reduce((s, a) => s + a.clients.reduce((s2, c) => s2 + c.longueDureeCount, 0), 0);
+
+  // Clients longue durée SANS aucune facture sur la période choisie — invisibles
+  // dans le classement CA, mais jamais cachés (surfacés dans l'aide à la décision).
+  const clientsFactures = new Set(agences.flatMap(a => a.clients.map(c => c.key)));
+  const enCoursSansFacture = [...enCoursParClient.values()].filter(e => !clientsFactures.has(e.key));
+
+  return {
+    agences, totalCaHT, totalCaTTC, totalFactures, totalAvoirs, totalClients, totalRows,
+    nbAgences: agences.length,
+    totalLongueDureeCaHT: totalLongueDureeCaHT + enCoursSansFacture.reduce((s, e) => s + e.caHT, 0),
+    totalLongueDureeCount: totalLongueDureeCount + enCoursSansFacture.reduce((s, e) => s + e.count, 0),
+    enCoursSansFacture,
+  };
+}
+
+function statsClientToRow(a, c) {
+  return {
+    key: c.key,
+    rangAgence: c.rangAgence,
+    client: c.client,
+    clientEntityId: c.clientEntityId,
+    agence: a.nom,
+    agenceCode: a.code,
+    caHT: c.caHT,
+    caTTC: c.caTTC,
+    factures: c.factures,
+    avoirs: c.avoirs,
+    contrats: c.contrats,
+    panierMoyen: c.panierMoyen,
+    pctAgence: c.pctAgence,
+    impaye: c.impaye,
+    objectif: c.objectif,
+    progression: c.progression,
+    longueDureeCaHT: c.longueDureeCaHT,
+    longueDureeCount: c.longueDureeCount,
+    longueDureeJoursMax: c.longueDureeJoursMax,
+  };
+}
+
+function renderStats(factureRaw, enCoursActuel, impayeItems, from, to, opts) {
+  _statsData = { factureRaw, enCoursActuel, impayeItems, from, to };
+  const el = document.getElementById('section-stats');
+  const agg = computeStatsAggregation(factureRaw, enCoursActuel, impayeItems);
+  _statsLastAgg = agg;
+
+  // Badge onglet = clients à risque (CA facturé ET solde impayé 12 mois) — signal actionnable,
+  // calculé sur TOUS les clients (pas seulement le Top N affiché) pour ne jamais cacher un risque
+  const clientsARisque = agg.agences.flatMap(a => a.clients).filter(c => c.impaye > 0.01).length;
+  updateBadge('stats', clientsARisque);
+
+  if (agg.totalRows === 0 && agg.enCoursSansFacture.length === 0) {
+    el.innerHTML = `<div class="empty">Aucune facture sur cette période / agence, et aucun contrat longue durée en cours — pas de classement à afficher.</div>`;
+    return;
+  }
+
+  const monthly = computeMonthlyBreakdown(factureRaw, from, to);
+
+  let html = statsAssumptionsBannerHtml();
+  html += statsTilesHtml(agg, from, to);
+  html += statsInsightsHtml(agg);
+  html += statsMonthlyHtml(monthly);
+  html += statsTopSelectorHtml();
+  html += `<div class="agence-grid">${agg.agences.map(a => statsAgenceCardHtml(a)).join('')}</div>`;
+  html += statsTableHtml('stats-tbl', agg);
+
+  el.innerHTML = html;
+
+  const rows = agg.agences.flatMap(a => a.clients.slice(0, _statsTopN).map(c => statsClientToRow(a, c)));
+  initStatsTable('stats-tbl', rows);
+
+  if (opts && opts.skipAnim) {
+    // Ré-édition d'un objectif : pas de replay (évite un flash à chaque frappe), juste l'état final
+    document.querySelectorAll('#section-stats .stat-tile').forEach(tile => {
+      tile.classList.add('in');
+      const target = parseFloat(tile.dataset.target) || 0;
+      const decimals = parseInt(tile.dataset.decimals || '0', 10);
+      const suffix = tile.dataset.suffix || '';
+      tile.querySelector('.stat-tile-value').textContent =
+        target.toLocaleString('fr-FR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + suffix;
+    });
+    document.querySelectorAll('#section-stats .agence-card').forEach(c => c.classList.add('in'));
+    document.querySelectorAll('#section-stats [data-target]').forEach(elm => {
+      const isHeight = elm.classList.contains('podium-bar');
+      elm.style[isHeight ? 'height' : 'width'] = elm.dataset.target;
+    });
+  } else {
+    requestAnimationFrame(() => requestAnimationFrame(() => playStatsAnimations()));
+  }
+}
+
+function statsTilesHtml(agg, from, to) {
+  const panierMoyen = agg.totalFactures ? agg.totalCaHT / agg.totalFactures : 0;
+  return `
+    <div class="stat-tiles">
+      <div class="stat-tile" data-target="${agg.totalCaHT}" data-decimals="0" data-suffix=" €">
+        <div class="stat-tile-icon">💶</div>
+        <div class="stat-tile-label">CA HT facturé</div>
+        <div class="stat-tile-value">0 €</div>
+        <div class="stat-tile-sub">TTC ${fmtEur(agg.totalCaTTC)}</div>
+      </div>
+      <div class="stat-tile" data-target="${agg.totalFactures}" data-decimals="0" data-suffix="">
+        <div class="stat-tile-icon">🧾</div>
+        <div class="stat-tile-label">Nombre de factures</div>
+        <div class="stat-tile-value">0</div>
+        <div class="stat-tile-sub">${agg.totalAvoirs ? agg.totalAvoirs + ' avoir' + (agg.totalAvoirs > 1 ? 's' : '') + ' déjà déduit' + (agg.totalAvoirs > 1 ? 's' : '') : 'Aucun avoir sur la période'}</div>
+      </div>
+      <div class="stat-tile" data-target="${panierMoyen}" data-decimals="0" data-suffix=" €">
+        <div class="stat-tile-icon">📊</div>
+        <div class="stat-tile-label">Panier moyen / facture</div>
+        <div class="stat-tile-value">0 €</div>
+        <div class="stat-tile-sub">CA HT / facture</div>
+      </div>
+      <div class="stat-tile" data-target="${agg.totalClients}" data-decimals="0" data-suffix="">
+        <div class="stat-tile-icon">👥</div>
+        <div class="stat-tile-label">Clients facturés</div>
+        <div class="stat-tile-value">0</div>
+        <div class="stat-tile-sub">${fmtDate(from)} → ${fmtDate(to)}</div>
+      </div>
+      <div class="stat-tile" data-target="${agg.nbAgences}" data-decimals="0" data-suffix="">
+        <div class="stat-tile-icon">🏢</div>
+        <div class="stat-tile-label">Agences</div>
+        <div class="stat-tile-value">0</div>
+        <div class="stat-tile-sub">${escHtml(agg.agences.map(a => a.code).join(' · '))}</div>
+      </div>
+      <div class="stat-tile" data-target="${agg.totalLongueDureeCaHT}" data-decimals="0" data-suffix=" €" style="background:linear-gradient(135deg,#37474f 0%,#263238 100%)">
+        <div class="stat-tile-icon">🕐</div>
+        <div class="stat-tile-label">Longue durée en cours</div>
+        <div class="stat-tile-value">0 €</div>
+        <div class="stat-tile-sub">${agg.totalLongueDureeCount} contrat${agg.totalLongueDureeCount > 1 ? 's' : ''} ≥ ${STATS_LONGUE_DUREE_JOURS} j · indépendant de la période</div>
+      </div>
+    </div>`;
+}
+
+// ── Aide à la décision : insights générés depuis l'agrégation, pas d'historique ──
+// Scanne TOUS les clients de chaque agence (pas seulement le Top N affiché) —
+// un risque (impayé, contrat longue durée en cours) ne doit jamais être caché
+// par le sélecteur d'affichage.
+function statsInsightsHtml(agg) {
+  const insights = [];
+  const tousClients = agg.agences.flatMap(a => a.clients.map(c => ({ ...c, agenceNom: a.nom })));
+
+  agg.agences.forEach(a => {
+    if (a.nbClients >= 3 && a.concentrationTop3 >= STATS_CONCENTRATION_ALERT) {
+      insights.push(`⚠️ <strong>${escHtml(a.nom)}</strong> : les 3 premiers clients représentent <strong>${Math.round(a.concentrationTop3)}%</strong> du CA facturé de l'agence — risque de dépendance commerciale.`);
+    }
+  });
+
+  // Longue durée en cours — clients avec facture(s) sur la période ET un contrat en cours
+  tousClients
+    .filter(c => c.longueDureeCount > 0)
+    .sort((x, y) => y.longueDureeCaHT - x.longueDureeCaHT)
+    .forEach(c => {
+      insights.push(`🕐 <strong>${escHtml(c.client)}</strong> (${escHtml(c.agenceNom)}) — CA contrat longue durée en cours = <strong>${fmtEur(c.longueDureeCaHT)}</strong> (${c.longueDureeCount} contrat${c.longueDureeCount > 1 ? 's' : ''}, ${c.longueDureeJoursMax} j).`);
+    });
+
+  // Longue durée en cours — clients SANS aucune facture sur la période choisie
+  // (invisibles dans le classement CA, jamais cachés pour autant)
+  agg.enCoursSansFacture
+    .slice()
+    .sort((x, y) => y.caHT - x.caHT)
+    .forEach(e => {
+      insights.push(`🕐 <strong>${escHtml(e.client)}</strong> (${escHtml(e.station || '—')}) — CA contrat longue durée en cours = <strong>${fmtEur(e.caHT)}</strong> (${e.count} contrat${e.count > 1 ? 's' : ''}, ${e.joursMax} j) — aucune facture émise sur la période choisie.`);
+    });
+
+  const clientsImpayes = tousClients
+    .filter(c => c.impaye > 0.01)
+    .sort((x, y) => y.impaye - x.impaye)
+    .slice(0, 5);
+  clientsImpayes.forEach(c => {
+    insights.push(`💰 <strong>${escHtml(c.client)}</strong> (${escHtml(c.agenceNom)}) génère ${fmtEur(c.caHT)} de CA HT facturé mais a un solde impayé de <strong>${fmtEur(c.impaye)}</strong> (12 mois glissants) — à relancer en priorité.`);
+  });
+
+  const sousObjectif = tousClients
+    .filter(c => c.objectif && c.progression < 70)
+    .sort((x, y) => x.progression - y.progression)
+    .slice(0, 5);
+  sousObjectif.forEach(c => {
+    insights.push(`🎯 <strong>${escHtml(c.client)}</strong> (${escHtml(c.agenceNom)}) est à <strong>${Math.round(c.progression)}%</strong> de son objectif (${fmtEur(c.caHT)} / ${fmtEur(c.objectif)}).`);
+  });
+
+  if (insights.length === 0) {
+    return `<div class="insight-panel"><h3>🎯 Aide à la décision</h3><div class="insight-empty">Aucune alerte détectée sur la sélection courante — répartition équilibrée, pas d'impayé croisé, pas de contrat longue durée en cours, objectifs atteints.</div></div>`;
+  }
+  return `<div class="insight-panel"><h3>🎯 Aide à la décision (${insights.length})</h3>${insights.map(t => `<div class="insight-item">${t}</div>`).join('')}</div>`;
+}
+
+// D-025 : point d'attention restant, toujours visible — jamais présenté comme
+// un chiffre certain sans contexte (cf. philosophie D-019/D-020).
+function statsAssumptionsBannerHtml() {
+  return `<div class="exemptions-banner" style="align-items:flex-start">
+    <div>
+      <strong>ℹ️ À savoir :</strong>
+      <div style="margin-top:6px;line-height:1.6">
+        Le CA facturé vient du grand livre facture wheelsys (<code>invoicesauditreport</code> —
+        une ligne = une facture, avoirs déjà déduits, factures annulées/void exclues). La tuile
+        « Longue durée en cours » et les notes associées sont une vue <strong>indépendante de la
+        période choisie</strong> — un contrat longue durée reste signalé même s'il n'a émis aucune
+        facture pendant la fenêtre sélectionnée.
+      </div>
+    </div>
+  </div>`;
+}
+
+// D-025 : regroupement mensuel du CA facturé par vraie date de facturation
+// (invoiceDate), affiché seulement si la période dépasse ~2 mois.
+function computeMonthlyBreakdown(factureRaw, from, to) {
+  const a = new Date(from), b = new Date(to);
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return null;
+  const spanDays = Math.round((b - a) / 86400000);
+  if (spanDays <= 60) return null;
+
+  const byMonth = new Map();
+  (factureRaw || []).forEach(r => {
+    if (!r.invoiceDate) return;
+    const ym = String(r.invoiceDate).slice(0, 7); // "YYYY-MM"
+    if (!byMonth.has(ym)) byMonth.set(ym, { mois: ym, caHT: 0, caTTC: 0, factures: 0, avoirs: 0 });
+    const m = byMonth.get(ym);
+    m.caHT += r.caHT || 0;
+    m.caTTC += r.caTTC || 0;
+    if (r.isCreditNote) m.avoirs++; else m.factures++;
+  });
+  return [...byMonth.values()].sort((x, y) => x.mois.localeCompare(y.mois));
+}
+
+function statsMonthLabel(ym) {
+  const noms = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+  const [y, m] = ym.split('-');
+  const idx = parseInt(m, 10) - 1;
+  return (noms[idx] || m) + ' ' + y;
+}
+
+function statsMonthlyHtml(monthly) {
+  if (!monthly || monthly.length === 0) return '';
+  const rows = monthly.map(m => `
+    <tr>
+      <td><strong>${statsMonthLabel(m.mois)}</strong></td>
+      <td>${fmtEur(m.caHT)}</td>
+      <td>${fmtEur(m.caTTC)}</td>
+      <td>${m.factures}</td>
+      <td>${m.avoirs || 0}</td>
+    </tr>`).join('');
+  return `
+    <h3 style="margin:8px 0 10px;color:var(--navy);font-size:15px">📅 CA facturé par mois</h3>
+    <div class="card-sub" style="margin-bottom:10px">Période &gt; 2 mois — répartition par vraie date de facturation (invoicesauditreport).</div>
+    <div class="table-wrap" style="margin-bottom:24px">
+      <table>
+        <thead><tr><th>Mois</th><th>CA HT</th><th>CA TTC</th><th>Factures</th><th>Avoirs</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function statsTopSelectorHtml() {
+  return `
+    <div class="table-toolbar" style="margin-bottom:6px">
+      <label style="font-size:13px;font-weight:600;color:var(--navy)">🏆 Nombre de clients affichés par agence</label>
+      <select onchange="setStatsTopN(this.value)" style="height:30px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-size:13px;background:#fff">
+        ${[10, 20, 30].map(n => `<option value="${n}" ${n === _statsTopN ? 'selected' : ''}>Top ${n}</option>`).join('')}
+      </select>
+    </div>`;
+}
+
+function statsConcentrationBadge(a) {
+  if (a.nbClients < 3) return `<span class="concentration-badge concentration-low" title="Moins de 3 clients — non significatif">peu de données</span>`;
+  if (a.concentrationTop3 >= STATS_CONCENTRATION_ALERT) return `<span class="concentration-badge concentration-high" title="Seuil indicatif ${STATS_CONCENTRATION_ALERT}% — non validé, à ajuster si besoin">⚠️ ${Math.round(a.concentrationTop3)}% top 3</span>`;
+  if (a.concentrationTop3 >= STATS_CONCENTRATION_WATCH) return `<span class="concentration-badge concentration-mid" title="Seuil indicatif ${STATS_CONCENTRATION_WATCH}-${STATS_CONCENTRATION_ALERT}%">${Math.round(a.concentrationTop3)}% top 3</span>`;
+  return `<span class="concentration-badge concentration-low">${Math.round(a.concentrationTop3)}% top 3 · diversifié</span>`;
+}
+
+function statsAgenceCardHtml(a) {
+  const top3 = a.clients.slice(0, 3);
+  const rest = a.clients.slice(3, Math.min(a.clients.length, _statsTopN));
+  const maxCa = a.clients[0] ? a.clients[0].caHT : 0;
+
+  const podiumOrder = [top3[1], top3[0], top3[2]]; // 2e / 1er / 3e — ordre visuel podium
+  const medal = ['🥈', '🥇', '🥉'];
+  const podiumCls = ['podium-2', 'podium-1', 'podium-3'];
+  const podiumHtml = `
+    <div class="podium">
+      ${podiumOrder.map((c, i) => {
+        if (!c) return `<div class="podium-col ${podiumCls[i]}"></div>`;
+        const h = maxCa > 0 ? Math.max(24, Math.round((c.caHT / maxCa) * 96)) : 24;
+        return `
+          <div class="podium-col ${podiumCls[i]}">
+            <div class="podium-medal">${medal[i]}</div>
+            <div class="podium-name" title="${escHtml(c.client)}">${clientLink(c)}${statsLongueDureeBadge(c)}</div>
+            <div class="podium-amount">${fmtEur(c.caHT)}</div>
+            <div class="podium-bar" data-target="${h}px" style="height:0"></div>
+          </div>`;
+      }).join('')}
+    </div>`;
+
+  const rankHtml = rest.length ? `
+    <div class="agence-rank-list">
+      ${rest.map(c => `
+        <div class="agence-rank-item">
+          <span class="agence-rank-num">#${c.rangAgence}</span>
+          <span class="agence-rank-name" title="${escHtml(c.client)}">${clientLink(c)}${statsLongueDureeBadge(c)}</span>
+          <div class="agence-rank-bar-track"><div class="agence-rank-bar-fill" data-target="${Math.max(2, Math.round(c.pctAgence))}%" style="width:0"></div></div>
+          <span class="agence-rank-amount">${fmtEur(c.caHT)}</span>
+        </div>`).join('')}
+    </div>` : '';
+
+  return `
+    <div class="agence-card">
+      <div class="agence-card-header">
+        <div>
+          <div class="agence-card-title">${escHtml(a.nom)}</div>
+          <div class="agence-card-ca">${fmtEur(a.caHT)} HT facturé · ${a.nbClients} client${a.nbClients > 1 ? 's' : ''} · ${a.factures} facture${a.factures > 1 ? 's' : ''}${a.avoirs ? ` · ${a.avoirs} avoir${a.avoirs > 1 ? 's' : ''}` : ''}</div>
+        </div>
+        ${statsConcentrationBadge(a)}
+      </div>
+      ${podiumHtml}
+      ${rankHtml}
+      <div class="agence-card-footer">
+        <button class="btn" style="background:#f0f2f6;color:#555;height:28px;padding:0 10px;font-size:11px" onclick="return statsFilterToAgence('${escJs(a.code)}')">Voir le détail →</button>
+      </div>
+    </div>`;
+}
+
+function statsLongueDureeBadge(c) {
+  if (!c.longueDureeCount) return '';
+  return ` <span class="pill pill-orange" title="Contrat(s) longue durée en cours — CA contrat longue durée en cours = ${fmtEur(c.longueDureeCaHT)} (${c.longueDureeJoursMax} j)">🕐</span>`;
+}
+
+function statsProgressBar(pct) {
+  if (pct == null) return '<span class="pill pill-grey">—</span>';
+  const color = pct >= 100 ? 'var(--green)' : pct >= 70 ? '#f57c00' : 'var(--red)';
+  const width = Math.max(0, Math.min(100, pct));
+  return `<div class="progress-bar-wrap">
+    <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${width}%;background:${color}"></div></div>
+    <span style="font-weight:700;color:${color};font-size:11px;min-width:32px">${Math.round(pct)}%</span>
+  </div>`;
+}
+
+function statsTableHtml(id, agg) {
+  const agences = agg.agences.map(a => a.nom);
+  const selStyle = 'height:34px;border:1px solid var(--border);border-radius:6px;padding:0 10px;font-size:13px;background:#fff';
+  return `
+    <h3 style="margin:8px 0 10px;color:var(--navy);font-size:15px">🏆 Classement détaillé — top ${_statsTopN} par agence (CA facturé)</h3>
+    <div class="table-toolbar" style="flex-wrap:wrap;margin-bottom:10px">
+      <select id="${id}-agence-filter" onchange="setTableFilter('${id}','agence',this.value)" style="${selStyle}">
+        <option value="">Toutes agences</option>
+        ${agences.map(v => `<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('')}
+      </select>
+    </div>
+    ${toolbarHtml(id, 'Rechercher un client…', 'Stats_clients_top')}
+    <div class="table-wrap" id="${id}-wrap" style="margin-bottom:24px">
+      <table>
+        <thead id="${id}-head">
+          <tr>
+            ${th('rangAgence',  'Rang')}
+            ${th('client',      'Client')}
+            ${th('agence',      'Agence')}
+            ${th('caHT',        'CA HT')}
+            ${th('caTTC',       'CA TTC')}
+            ${th('factures',    'Factures')}
+            ${th('panierMoyen', 'Panier moyen')}
+            ${th('pctAgence',   '% agence')}
+            ${th('impaye',      'Impayé (12 mois)')}
+            <th>Objectif CA (éditable)</th>
+          </tr>
+        </thead>
+        <tbody id="${id}-tbody"></tbody>
+      </table>
+    </div>`;
+}
+
+function initStatsTable(id, rows) {
+  const cols = [
+    { key: 'rangAgence',  type: 'number' },
+    { key: 'client',      type: 'string' },
+    { key: 'agence',      type: 'string' },
+    { key: 'caHT',        type: 'number' },
+    { key: 'caTTC',       type: 'number' },
+    { key: 'factures',    type: 'number' },
+    { key: 'panierMoyen', type: 'number' },
+    { key: 'pctAgence',   type: 'number' },
+    { key: 'impaye',      type: 'number' },
+    { key: 'objectif',    type: 'number' },
+    { key: 'contrats',    type: 'number' }, // pas de colonne dédiée, inclus pour recherche/export
+    { key: 'avoirs',      type: 'number' }, // idem
+  ];
+  initSortableTable(id, rows, cols, r => `
+    <tr>
+      <td><strong>#${r.rangAgence}</strong></td>
+      <td class="cell-wrap">
+        ${clientLink(r)}
+        <div class="cell-sub">${r.contrats} contrat${r.contrats > 1 ? 's' : ''}${r.avoirs ? ` · ${r.avoirs} avoir${r.avoirs > 1 ? 's' : ''}` : ''}</div>
+        ${r.longueDureeCount
+          ? `<div class="cell-sub">🕐 CA contrat longue durée en cours = ${fmtEur(r.longueDureeCaHT)} (${r.longueDureeCount} contrat${r.longueDureeCount > 1 ? 's' : ''}, ${r.longueDureeJoursMax} j)</div>`
+          : ''}
+      </td>
+      <td>${escHtml(r.agence || '—')}</td>
+      <td><strong>${fmtEur(r.caHT)}</strong></td>
+      <td>${fmtEur(r.caTTC)}</td>
+      <td>${r.factures}</td>
+      <td>${fmtEur(r.panierMoyen)}</td>
+      <td>${Math.round(r.pctAgence)} %</td>
+      <td>${r.impaye > 0.01 ? `<span class="amount-danger">${fmtEur(r.impaye)}</span>` : '<span class="amount-ok">0 €</span>'}</td>
+      <td class="cell-wrap">
+        <input type="number" class="objectif-input" min="0" step="100" placeholder="—"
+          value="${r.objectif ?? ''}" onchange="setClientObjectif('${escJs(r.key)}', this.value)"
+          title="Objectif de CA HT pour ce client — donnée locale (ce navigateur), n'affecte jamais les chiffres wheelsys">
+        <div style="margin-top:4px">${statsProgressBar(r.progression)}</div>
+      </td>
+    </tr>`);
+}
+
+// Clic "Voir le détail →" sur une carte agence : filtre + scroll + révèle la ligne dans le tableau détaillé
+function statsFilterToAgence(code) {
+  if (!_statsLastAgg) return false;
+  const ag = _statsLastAgg.agences.find(a => a.code === code);
+  const name = ag ? ag.nom : code;
+  const sel = document.getElementById('stats-tbl-agence-filter');
+  if (sel) sel.value = name;
+  setTableFilter('stats-tbl', 'agence', name);
+  document.getElementById('stats-tbl-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return false;
+}
+
+function animateCountUp(el, target, { decimals = 0, suffix = '', duration = 900 } = {}) {
+  if (!el) return;
+  const t0 = performance.now();
+  function step(now) {
+    const p = Math.min(1, (now - t0) / duration);
+    const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
+    const val = target * eased;
+    el.textContent = val.toLocaleString('fr-FR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + suffix;
+    if (p < 1) requestAnimationFrame(step);
+    else el.textContent = target.toLocaleString('fr-FR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + suffix;
+  }
+  requestAnimationFrame(step);
+}
+
+// Rejoue l'entrée animée (tuiles + cartes + barres) — appelée au premier rendu
+// et à chaque fois que l'onglet Stats redevient visible (cf. showTab).
+function playStatsAnimations() {
+  const root = document.getElementById('section-stats');
+  if (!root) return;
+
+  root.querySelectorAll('.stat-tile').forEach(tile => {
+    const target   = parseFloat(tile.dataset.target) || 0;
+    const decimals = parseInt(tile.dataset.decimals || '0', 10);
+    const suffix   = tile.dataset.suffix || '';
+    tile.classList.remove('in');
+    void tile.offsetWidth; // force reflow pour rejouer la transition CSS
+    tile.classList.add('in');
+    animateCountUp(tile.querySelector('.stat-tile-value'), target, { decimals, suffix });
+  });
+
+  root.querySelectorAll('.agence-card').forEach(card => card.classList.remove('in'));
+  root.querySelectorAll('.agence-card').forEach((card, i) => {
+    setTimeout(() => card.classList.add('in'), 40 + i * 70);
+  });
+
+  root.querySelectorAll('[data-target]').forEach(elm => {
+    const isHeight = elm.classList.contains('podium-bar');
+    elm.style[isHeight ? 'height' : 'width'] = '0';
+  });
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      root.querySelectorAll('[data-target]').forEach(elm => {
+        const isHeight = elm.classList.contains('podium-bar');
+        elm.style[isHeight ? 'height' : 'width'] = elm.dataset.target;
+      });
+    });
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  PLAN DE FLOTTE  (backend-pilotage / Railway — endpoint /api/plan-flotte)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// URL publique du service backend-pilotage (Railway).
+const PILOTAGE_API = 'https://wheels-backend-pilotage-production.up.railway.app';
+
+let _flotteLoaded   = false;
+let _flotteHorizon  = 12;     // mois
+let _flotteSaisonnier = true; // ajustement 15/09 activé par défaut (D-009)
+let _flotteVueComplete = false; // false = file d'actions (horizon) ; true = tout le parc présent
+let _flotteData = null;       // dernière réponse chargée — permet un re-rendu sans refetch
+let _flotteProchaines = 10;   // D-017 — nombre de sorties dans la vignette (10/20/30, choix Julien)
+
+function setFlotteHorizon(v) {
+  const n = parseInt(v, 10);
+  _flotteHorizon = Number.isNaN(n) ? 12 : Math.min(Math.max(n, 1), 120);
+  loadFlotte();
+}
+function toggleFlotteSaisonnier(checked) { _flotteSaisonnier = !!checked; loadFlotte(); }
+function toggleFlotteVueComplete(checked) { _flotteVueComplete = !!checked; loadFlotte(); }
+// Vignette "prochaines sorties" : ne redemande pas le backend, on a déjà tout
+// (tousVehicules trié par date de sortie) — juste un nouveau slice + rendu.
+function setFlotteProchaines(v) {
+  const n = parseInt(v, 10);
+  _flotteProchaines = [10, 20, 30].includes(n) ? n : 10;
+  if (_flotteData) renderFlotte(_flotteData);
+}
+
+async function loadFlotte() {
+  const el = document.getElementById('section-flotte');
+
+  // État "non configuré" : URL backend absente
+  if (!PILOTAGE_API) { el.innerHTML = flotteSetupHtml(); return; }
+
+  // État "loading"
+  el.innerHTML = `<div class="empty"><div class="spinner"></div><br><br>Chargement du plan de flotte…</div>`;
+
+  try {
+    const url = `${PILOTAGE_API.replace(/\/$/, '')}/api/plan-flotte?horizon=${_flotteHorizon}`
+      + (_flotteSaisonnier ? '' : '&saisonnier=off');
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    _flotteLoaded = true;
+    _flotteData = data;
+    renderFlotte(data);
+  } catch (err) {
+    // État "error" avec action retry
+    el.innerHTML =
+      `<div class="status-err">❌ Impossible de charger le plan de flotte : ${escHtml(err.message)}</div>
+       <div style="margin-top:12px"><button class="btn btn-primary" onclick="loadFlotte()">Réessayer</button></div>
+       <div class="card-sub" style="margin-top:8px">Vérifie que le backend Railway est en ligne et que <code>PILOTAGE_API</code> est correct.</div>`;
+  }
+}
+
+// Aplatit un item backend (reco/finance imbriqués) en ligne plate pour la
+// table générique (recherche/tri/export travaillent sur des clés plates).
+function flotteToRow(item) {
+  return {
+    id: item.id,
+    plateno: item.plateno,
+    agence: item.agence,
+    classe: item.classe,
+    categorie: item.categorie,
+    cargroup: item.cargroup,
+    km: item.km,
+    action: item.reco ? item.reco.action : null,
+    urgence: item.reco ? item.reco.urgence : null,
+    score: item.reco ? item.reco.score : 0,
+    raison: item.reco ? item.reco.raison : '',
+    fleetentry: item.fleetentry,
+    dateSortie: item.dateSortie,
+    joursRestants: item.joursRestants,
+    saisonnierApplique: item.saisonnierApplique,
+    utilperc: item.utilperc,
+    avdays: item.avdays,
+    typeContrat: item.typeContrat,
+    coutMensuel: item.coutMensuel,
+    valeurResiduelle: item.valeurResiduelle,
+    capitalRestant: item.capitalRestant,
+  };
+}
+
+function renderFlotte(data) {
+  const el = document.getElementById('section-flotte');
+  const kpis  = data.kpis || {};
+  const peri  = data.perimetre || {};
+  const params = data.params || {};
+  const source = _flotteVueComplete ? data.tousVehicules : data.fileActions;
+  const items = (Array.isArray(source) ? source : []).map(flotteToRow);
+
+  // Badge onglet = nombre de véhicules à sortir (l'info actionnable), pas le
+  // total. D-022 (2026-07-17, choix Julien : « inclure l'ensemble des
+  // véhicules dans les chiffres pour avoir une vision réelle ») : SORTIR +
+  // RENOUVELER, les deux quittent physiquement le parc.
+  const parActionK = kpis.parAction || {};
+  updateBadge('flotte', (parActionK.SORTIR || 0) + (parActionK.RENOUVELER || 0));
+
+  let html = flotteControlsHtml() + flotteSubNavHtml() + flotteConfigBannerHtml(data);
+  html += `<div id="flotte-sec-kpis">${flotteKpiHtml(kpis, peri)}</div>`;
+
+  // D-017 — Plan de renouvellement : vignette prochaines sorties + top/flop
+  // catégories. Affiché même si la file d'actions horizon est vide (utile en
+  // vue "tout le parc"), donc placé AVANT le early-return "empty".
+  html += `<div id="flotte-sec-prochaines">${flotteProchainesSortiesHtml(data)}</div>`;
+  html += `<div id="flotte-sec-topflop">${flotteTopFlopHtml(data.renouvellement)}</div>`;
+
+  // État "empty" intelligent
+  if (items.length === 0) {
+    html += _flotteVueComplete
+      ? `<div class="status-ok">✅ Aucun véhicule dans le parc présent in-scope.</div>`
+      : `<div class="status-ok">✅ Aucun véhicule à sortir dans les ${params.horizon ?? _flotteHorizon} prochains mois — parc présent in-scope : ${peri.parcPresentInScope ?? 0}.</div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  // Plan de commande placé AVANT le détail véhicules (souvent >200 lignes) —
+  // signalé par Julien : trop loin en bas de page pour y accéder facilement.
+  // La sous-nav sticky permet en plus d'y sauter depuis n'importe où.
+  html += `<div id="flotte-sec-renouv">${renouvTableHtml('renouv-tbl', data.renouvellement)}</div>`;
+  html += `<div id="flotte-sec-table">${flotteTableHtml('flotte-tbl', items)}</div>`;
+  el.innerHTML = html;
+  initFlotteTable('flotte-tbl', items);
+  syncTopScroll('flotte-tbl');
+  initRenouvTable('renouv-tbl', (data.renouvellement && data.renouvellement.parCargroup || []).map(renouvToRow), data.alertesHorizon);
+  syncTopScroll('renouv-tbl');
+}
+
+// Sous-navigation sticky : accès direct aux sections sans scroller à la main
+// à travers 200+ lignes de véhicules — signalé par Julien 2026-07-16.
+function flotteSubNavHtml() {
+  const items = [
+    { id: 'flotte-sec-kpis',       label: '📊 KPIs' },
+    { id: 'flotte-sec-prochaines', label: '🗓️ Prochaines sorties' },
+    { id: 'flotte-sec-topflop',    label: '🏆 Top/Flop catégories' },
+    { id: 'flotte-sec-renouv',     label: '📦 Plan de commande' },
+    { id: 'flotte-sec-table',      label: '🚗 Détail véhicules' },
+  ];
+  return `
+    <div class="flotte-subnav">
+      ${items.map(i => `<a href="#${i.id}" onclick="return scrollToFlotteSection('${i.id}')">${i.label}</a>`).join('')}
+    </div>`;
+}
+function scrollToFlotteSection(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return false; // empêche le saut brutal natif de l'ancre, on gère le smooth scroll
+}
+
+// Clic sur une vignette "Prochaines sorties" → filtre le tableau "Détail
+// véhicules" sur cette plaque exacte (isole la ligne) + scroll + flash visuel.
+function goToVehiculeInTable(plateno) {
+  const id = 'flotte-tbl';
+  const s = tableState[id];
+  if (s) {
+    s.filter = plateno;
+    const filterEl = document.getElementById(id + '-filter');
+    const clearEl = document.getElementById(id + '-clear');
+    if (filterEl) filterEl.value = plateno;
+    if (clearEl) clearEl.style.display = 'block';
+    _renderTable(id);
+  }
+  scrollToFlotteSection('flotte-sec-table');
+  const rowId = String(plateno || '').replace(/[^A-Za-z0-9-]/g, '');
+  const row = document.getElementById('veh-row-' + rowId);
+  if (row) row.classList.add('row-flash');
+  return false;
+}
+
+// Bandeau d'alerte config si une source best-effort (finance/utilisation) a
+// échoué côté backend — évite de confondre "pas de bug" avec "vraiment vide".
+function flotteConfigBannerHtml(data) {
+  let html = '';
+  if (data.financeDisponible === false) {
+    html += `<div class="exemptions-banner">
+      <strong>⚠️ Données finance indisponibles :</strong>
+      Contrat / Coût mensuel / Résiduelle / Capital restant resteront vides tant
+      que Railway n'a pas <code>GRAPH_TENANT_ID</code>, <code>GRAPH_CLIENT_ID</code>,
+      <code>GRAPH_CLIENT_SECRET</code> et <code>FINANCE_SHARE_URL</code> configurés
+      (Variables du service) — copie les valeurs depuis ton <code>.env</code> local.
+    </div>`;
+  }
+  if (data.utilisationDisponible === false) {
+    html += `<div class="exemptions-banner">
+      <strong>⚠️ Données d'utilisation indisponibles :</strong>
+      Le rapport wheelsys <code>fleetutilizationreport</code> a échoué — utilisation
+      et recommandations SORTIR/RENOUVELER/PROLONGER seront dégradées (SURVEILLER par défaut).
+    </div>`;
+  }
+  if (data.rotationDetentionDisponible === false) {
+    html += `<div class="exemptions-banner">
+      <strong>⚠️ Rotation détention indisponible :</strong>
+      La mesure "depuis l'entrée en parc" du plan de renouvellement est absente
+      (2e appel wheelsys échoué) — seule la rotation 12 mois glissants s'affiche.
+    </div>`;
+  }
+  const exclusHorsExcel = data.perimetre ? (data.perimetre.exclusHorsExcel || 0) : 0;
+  if (exclusHorsExcel > 0) {
+    html += `<div class="exemptions-banner">
+      <strong>ℹ️ ${exclusHorsExcel} véhicule${exclusHorsExcel > 1 ? 's' : ''} retiré${exclusHorsExcel > 1 ? 's' : ''} du reporting :</strong>
+      présent${exclusHorsExcel > 1 ? 's' : ''} dans wheelsys mais absent${exclusHorsExcel > 1 ? 's' : ''} du fichier
+      Excel "Base Flotte" — source de vérité du parc réel (D-018).
+    </div>`;
+  }
+  return html;
+}
+
+// ─── D-017 — Vignette "prochaines sorties" (sélecteur 10/20/30) ──────────────
+function flotteProchainesSortiesHtml(data) {
+  const tous = Array.isArray(data.tousVehicules) ? data.tousVehicules : [];
+  if (tous.length === 0) return '';
+  // tousVehicules est déjà trié par dateSortie croissante (buildPlanFlotte) —
+  // les véhicules en retard (joursRestants < 0) remontent naturellement en tête.
+  const prochains = tous.slice(0, _flotteProchaines);
+  const cartes = prochains.map((v) => `
+    <div class="mini-card clickable" onclick="return goToVehiculeInTable('${escJs(v.plateno)}')" title="Voir ${escHtml(v.plateno || '')} dans le tableau détaillé">
+      <div class="mini-card-top">
+        <strong>${escHtml(v.plateno || '—')}</strong>
+        ${flotteActionPill(v.reco ? v.reco.action : null)}
+      </div>
+      <div class="mini-card-sub">${escHtml(v.agence || '—')} · ${escHtml(v.classe || '—')}${v.cargroup ? ' · ' + escHtml(v.cargroup) : ''}</div>
+      <div class="mini-card-sub">${flotteEcheancePill(v.joursRestants)} · ${fmtDate(v.dateSortie)}</div>
+    </div>`).join('');
+  return `
+    <div style="margin-bottom:20px">
+      <div class="table-toolbar" style="margin-bottom:10px">
+        <label style="font-size:13px;font-weight:600;color:var(--navy)">🗓️ Prochaines sorties</label>
+        <select onchange="setFlotteProchaines(this.value)"
+          style="height:30px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-size:13px;background:#fff">
+          ${[10, 20, 30].map(n => `<option value="${n}" ${n === _flotteProchaines ? 'selected' : ''}>${n} prochaines</option>`).join('')}
+        </select>
+      </div>
+      <div class="mini-card-row">${cartes}</div>
+    </div>`;
+}
+
+// ─── D-017 — Top 3 / Flop 3 catégories (rotation), classables uniquement ─────
+function flotteTopFlopHtml(renouvellement) {
+  if (!renouvellement) return '';
+  const carte = (g) => `
+    <div class="mini-card" style="min-width:200px">
+      <div class="mini-card-top">
+        <strong>${escHtml(g.classe || '—')} ${escHtml(g.cargroup || '—')}</strong>
+        ${renouvVerdictPill(g.verdict)}
+      </div>
+      <div class="mini-card-sub">Rotation 12 mois : <strong>${g.rotation12Mois != null ? g.rotation12Mois + ' %' : '—'}</strong></div>
+      <div class="mini-card-sub">Rotation détention : ${g.rotationDetention != null ? g.rotationDetention + ' %' : '—'}</div>
+      <div class="mini-card-sub">Coût/CA : ${g.ratioCoutCA != null ? g.ratioCoutCA + ' %' : '—'} (flotte : ${renouvellement.moyenneFlotte.ratioCoutCA != null ? renouvellement.moyenneFlotte.ratioCoutCA + ' %' : '—'})</div>
+      <div class="mini-card-sub">${g.nbVehicules} véhicule${g.nbVehicules > 1 ? 's' : ''}</div>
+    </div>`;
+  if (renouvellement.top3Rotation.length === 0 && renouvellement.flop3Rotation.length === 0) {
+    return `<div class="status-ok" style="margin-bottom:20px">ℹ️ Aucune catégorie classable pour l'instant (minimum ${renouvellement.seuilClassable} véhicules avec rotation connue).</div>`;
+  }
+  return `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--green);margin-bottom:8px">🏆 Top 3 — meilleure rotation</div>
+        <div class="mini-card-row" style="flex-direction:column">${renouvellement.top3Rotation.map(carte).join('')}</div>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--red);margin-bottom:8px">⚠️ Flop 3 — rotation la plus faible</div>
+        <div class="mini-card-row" style="flex-direction:column">${renouvellement.flop3Rotation.map(carte).join('')}</div>
+      </div>
+    </div>`;
+}
+
+function renouvVerdictPill(verdict) {
+  const cls = { RENOUVELER: 'pill-green', A_SURVEILLER: 'pill-orange', NE_PAS_RENOUVELER: 'pill-red', DONNEE_INSUFFISANTE: 'pill-grey' }[verdict] || 'pill-grey';
+  const label = { RENOUVELER: 'Renouveler', A_SURVEILLER: 'À surveiller', NE_PAS_RENOUVELER: 'Ne pas renouveler', DONNEE_INSUFFISANTE: 'Donnée insuffisante' }[verdict] || verdict || '—';
+  return `<span class="pill ${cls}">${escHtml(label)}</span>`;
+}
+
+function flotteControlsHtml() {
+  const opts = [3, 6, 12, 18, 24, 36]
+    .map(m => `<option value="${m}" ${m === _flotteHorizon ? 'selected' : ''}>${m} mois</option>`).join('');
+  return `
+    <div class="table-toolbar" style="gap:20px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap">
+      <div class="filter-group">
+        <label>Horizon d'alerte</label>
+        <select onchange="setFlotteHorizon(this.value)"
+          style="height:34px;border:1px solid var(--border);border-radius:6px;padding:0 10px;font-size:13px;background:#fff">${opts}</select>
+      </div>
+      <div class="filter-group">
+        <label>Ajustement saisonnier (15/09)</label>
+        <label style="display:flex;align-items:center;gap:6px;height:34px;font-size:13px;cursor:pointer">
+          <input type="checkbox" ${_flotteSaisonnier ? 'checked' : ''} onchange="toggleFlotteSaisonnier(this.checked)"> Activé
+        </label>
+      </div>
+      <div class="filter-group">
+        <label>Vue</label>
+        <label style="display:flex;align-items:center;gap:6px;height:34px;font-size:13px;cursor:pointer">
+          <input type="checkbox" ${_flotteVueComplete ? 'checked' : ''} onchange="toggleFlotteVueComplete(this.checked)"> Tout le parc (pas seulement l'horizon)
+        </label>
+      </div>
+      <div class="filter-group" style="margin-left:auto;justify-content:flex-end">
+        <label>&nbsp;</label>
+        <button class="btn" style="background:#f0f2f6;color:#555" onclick="loadFlotte()">↻ Recharger</button>
+      </div>
+    </div>`;
+}
+
+function flotteKpiHtml(kpis, peri) {
+  const parAction = kpis.parAction || {};
+  return `
+    <div class="summary">
+      <div class="card">
+        <div class="card-title">Parc présent (in-scope)</div>
+        <div class="card-value">${peri.parcPresentInScope ?? 0}</div>
+        <div class="card-sub">SLV · GJ · NCE · GR — PL exclus (${peri.exclusPL ?? 0})${peri.exclusHorsExcel ? ` · hors Excel (${peri.exclusHorsExcel})` : ''}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">À sortir (recommandé)</div>
+        <div class="card-value ${((parAction.SORTIR || 0) + (parAction.RENOUVELER || 0)) > 0 ? 'danger' : 'ok'}">${(parAction.SORTIR || 0) + (parAction.RENOUVELER || 0)}</div>
+        <div class="card-sub">SORTIR (${parAction.SORTIR || 0}) + RENOUVELER (${parAction.RENOUVELER || 0}) — utilisation sous le seuil (${kpis.seuilUtil ?? 70} %) et/ou retard</div>
+      </div>
+      <div class="card">
+        <div class="card-title">En retard de sortie</div>
+        <div class="card-value ${(kpis.enRetard || 0) > 0 ? 'danger' : 'ok'}">${kpis.enRetard || 0}</div>
+        <div class="card-sub">Date de sortie théorique déjà dépassée</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Coût mensuel à sortir</div>
+        <div class="card-value" style="color:var(--blue)">${fmtEur(kpis.coutMensuelSortir)}</div>
+        <div class="card-sub">Somme des paiements mensuels HT des véhicules SORTIR + RENOUVELER</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Capital immobilisé à sortir</div>
+        <div class="card-value" style="color:var(--blue)">${fmtEur(kpis.capitalImmobiliseSortir)}</div>
+        <div class="card-sub">Engagement restant sur les véhicules SORTIR + RENOUVELER</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Résiduelle récupérable</div>
+        <div class="card-value ok">${fmtEur(kpis.residuelleRecuperableSortir)}</div>
+        <div class="card-sub">Valeur résiduelle des véhicules SORTIR + RENOUVELER</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Utilisation moyenne</div>
+        <div class="card-value">${kpis.utilMoyenne != null ? kpis.utilMoyenne + ' %' : '—'}</div>
+        <div class="card-sub">Véhicules dans l'horizon, moyenne simple</div>
+      </div>
+    </div>`;
+}
+
+// Options distinctes présentes dans le jeu de données courant (filtres dynamiques)
+function flotteDistinct(items, key, ordre) {
+  const present = new Set(items.map(i => i[key]).filter(v => v != null && v !== ''));
+  return (ordre || [...present].sort()).filter(v => present.has(v));
+}
+
+function flotteFiltersHtml(id, items) {
+  const opt = (v, label) => `<option value="${escHtml(v)}">${escHtml(label || v)}</option>`;
+  const agences  = flotteDistinct(items, 'agence');
+  const classes  = flotteDistinct(items, 'classe');
+  const actions  = flotteDistinct(items, 'action',  ['SORTIR', 'RENOUVELER', 'PROLONGER', 'SURVEILLER']);
+  const urgences = flotteDistinct(items, 'urgence', ['haute', 'moyenne', 'basse']);
+  const selStyle = 'height:34px;border:1px solid var(--border);border-radius:6px;padding:0 10px;font-size:13px;background:#fff';
+  return `
+    <div class="table-toolbar" style="flex-wrap:wrap;margin-bottom:10px">
+      <select onchange="setTableFilter('${id}','agence',this.value)" style="${selStyle}">
+        <option value="">Toutes agences</option>${agences.map(v => opt(v)).join('')}
+      </select>
+      <select onchange="setTableFilter('${id}','classe',this.value)" style="${selStyle}">
+        <option value="">Tous types</option>${classes.map(v => opt(v)).join('')}
+      </select>
+      <select onchange="setTableFilter('${id}','action',this.value)" style="${selStyle}">
+        <option value="">Toutes actions</option>${actions.map(v => opt(v)).join('')}
+      </select>
+      <select onchange="setTableFilter('${id}','urgence',this.value)" style="${selStyle}">
+        <option value="">Toutes urgences</option>${urgences.map(v => opt(v)).join('')}
+      </select>
+    </div>`;
+}
+
+function flotteTableHtml(id, items) {
+  return `
+    ${flotteFiltersHtml(id, items)}
+    ${toolbarHtml(id, 'Rechercher plaque, agence, contrat…', 'Cockpit_flotte')}
+    <div class="table-scroll-top" id="${id}-scrolltop"><div></div></div>
+    <div class="table-wrap" id="${id}-wrap" style="margin-bottom:24px">
+      <table class="tbl-sticky-col1">
+        <thead id="${id}-head">
+          <tr>
+            ${th('plateno',         'Plaque')}
+            ${th('agence',          'Agence')}
+            ${th('cargroup',        'Catégorie')}
+            ${th('classe',          'Type')}
+            ${th('km',              'Kilométrage')}
+            ${th('action',          'Action')}
+            ${th('urgence',         'Urgence')}
+            ${th('score',           'Priorité')}
+            ${th('dateSortie',      'Sortie prévue')}
+            ${th('joursRestants',   'Échéance')}
+            ${th('utilperc',        'Utilisation')}
+            ${th('coutMensuel',     'Coût/mois')}
+            ${th('valeurResiduelle', 'Résiduelle')}
+            ${th('capitalRestant',  'Capital restant')}
+          </tr>
+        </thead>
+        <tbody id="${id}-tbody"></tbody>
+      </table>
+    </div>`;
+}
+
+// Synchronise une barre de défilement horizontal dupliquée en haut avec le
+// conteneur réel (en bas) — évite de devoir scroller toute la table pour
+// atteindre la barre native quand il y a beaucoup de lignes.
+function syncTopScroll(id) {
+  const wrap = document.getElementById(id + '-wrap');
+  const top = document.getElementById(id + '-scrolltop');
+  if (!wrap || !top) return;
+  const table = wrap.querySelector('table');
+  const inner = top.firstElementChild;
+  if (!table || !inner) return;
+  inner.style.width = table.scrollWidth + 'px';
+  let syncing = false;
+  top.onscroll = () => { if (syncing) return; syncing = true; wrap.scrollLeft = top.scrollLeft; syncing = false; };
+  wrap.onscroll = () => { if (syncing) return; syncing = true; top.scrollLeft = wrap.scrollLeft; syncing = false; };
+}
+
+function flotteActionPill(action) {
+  // D-022 — RENOUVELER (productif mais en retard → remplacer par un véhicule
+  // identique) : orange, entre PROLONGER (vert, rien à faire) et SORTIR
+  // (rouge, peu productif) — signale une action à planifier, pas urgente.
+  const cls = { SORTIR: 'pill-red', RENOUVELER: 'pill-orange', PROLONGER: 'pill-green', SURVEILLER: 'pill-grey' }[action] || 'pill-grey';
+  return `<span class="pill ${cls}">${escHtml(action || '—')}</span>`;
+}
+function flotteUrgencePill(urgence) {
+  const cls = { haute: 'pill-red', moyenne: 'pill-orange', basse: 'pill-grey' }[urgence] || 'pill-grey';
+  return `<span class="pill ${cls}">${escHtml(urgence || '—')}</span>`;
+}
+function flotteEcheancePill(joursRestants) {
+  const j = Number(joursRestants);
+  return j < 0
+    ? `<span class="pill pill-red">retard ${Math.abs(j)} j</span>`
+    : `<span class="pill ${j <= 90 ? 'pill-orange' : 'pill-blue'}">dans ${j} j</span>`;
+}
+// D-019/D-020 — indique quelle source a produit la date de sortie : contrat
+// Excel exact (ferme), estimation à partir de la durée de financement Excel
+// (plus fiable que la règle générique), ou repli générique classe (24/36
+// mois depuis l'entrée en parc). Jamais de source cachée.
+function flotteSourceDatePill(source) {
+  if (source === 'excel') return `<span class="pill pill-green" title="Date issue du contrat réel (fichier Excel Base Flotte)">contrat Excel</span>`;
+  if (source === 'excel_duree') return `<span class="pill pill-blue" title="Estimée depuis l'entrée en parc + durée de financement prévue (fichier Excel, colonne Q), plafonnée à la durée max de détention">estimé (durée financement)</span>`;
+  if (source === 'wheelsys') return `<span class="pill pill-grey" title="Aucune date Excel disponible pour ce véhicule — règle générique par classe (VP 24 mois / VU 36 mois depuis l'entrée en parc)">estimé (règle générique)</span>`;
+  return '';
+}
+
+function initFlotteTable(id, rows) {
+  const cols = [
+    { key: 'plateno',          type: 'string' },
+    { key: 'agence',           type: 'string' },
+    { key: 'classe',           type: 'string' },
+    { key: 'categorie',        type: 'string' },
+    { key: 'cargroup',         type: 'string' },
+    { key: 'km',               type: 'number' },
+    { key: 'action',           type: 'string' },
+    { key: 'urgence',          type: 'string' },
+    { key: 'score',            type: 'number' },
+    { key: 'raison',           type: 'string' }, // pas de colonne dédiée, incluse pour recherche/export
+    { key: 'dateSortie',       type: 'string' },
+    { key: 'sourceDateSortie', type: 'string' }, // pas de colonne dédiée, incluse pour recherche/export (D-019)
+    { key: 'joursRestants',    type: 'number' },
+    { key: 'utilperc',         type: 'number' },
+    { key: 'avdays',           type: 'number' }, // pas de colonne dédiée, incluse pour recherche/export
+    { key: 'typeContrat',      type: 'string' },
+    { key: 'coutMensuel',      type: 'number' },
+    { key: 'valeurResiduelle', type: 'number' },
+    { key: 'capitalRestant',   type: 'number' },
+  ];
+  initSortableTable(id, rows, cols, r => {
+    const saison = r.saisonnierApplique
+      ? ` <span class="pill pill-grey" title="Sortie repoussée au 15/09 (catégorie saisonnière)">saison</span>` : '';
+    const rowId = String(r.plateno || '').replace(/[^A-Za-z0-9-]/g, '');
+    return `
+      <tr id="veh-row-${rowId}">
+        <td><strong>${escHtml(r.plateno || '—')}</strong></td>
+        <td>${escHtml(r.agence || '—')}</td>
+        <td>${escHtml(r.cargroup || '—')}</td>
+        <td><span class="pill ${r.classe === 'VU' ? 'pill-blue' : 'pill-grey'}">${escHtml(r.classe || '—')}</span></td>
+        <td>${fmtKm(r.km)}</td>
+        <td>${flotteActionPill(r.action)}</td>
+        <td>${flotteUrgencePill(r.urgence)}</td>
+        <td>${r.score ?? '—'}</td>
+        <td class="cell-wrap">
+          <strong>${fmtDate(r.dateSortie)}</strong>${saison}
+          <div class="cell-sub">${flotteSourceDatePill(r.sourceDateSortie)}</div>
+          <div class="cell-sub">${escHtml(r.raison || '')}</div>
+        </td>
+        <td>${flotteEcheancePill(r.joursRestants)}</td>
+        <td class="cell-wrap">
+          ${r.utilperc != null ? r.utilperc + ' %' : '—'}
+          ${r.avdays != null ? `<div class="cell-sub">${r.avdays} j dispo (12 mois)</div>` : ''}
+        </td>
+        <td class="cell-wrap">
+          ${r.coutMensuel != null ? fmtEur(r.coutMensuel) : '—'}
+          ${r.typeContrat ? `<div class="cell-sub">${escHtml(r.typeContrat)}</div>` : ''}
+        </td>
+        <td>${r.valeurResiduelle != null ? fmtEur(r.valeurResiduelle) : '—'}</td>
+        <td>${r.capitalRestant != null ? fmtEur(r.capitalRestant) : '—'}</td>
+      </tr>`;
+  });
+}
+
+// ─── D-017 — Tableau "Plan de commande" (par classe×cargroup) ───────────────
+function renouvToRow(g) {
+  return {
+    classe: g.classe,
+    cargroup: g.cargroup,
+    nbVehicules: g.nbVehicules,
+    classable: g.classable,
+    rotation12Mois: g.rotation12Mois,
+    rotationDetention: g.rotationDetention,
+    ratioCoutCA: g.ratioCoutCA,
+    sortiesPrevues: g.sortiesPrevues,
+    sortiesParMoisTxt: (g.sortiesParMois || []).map(m => `${m.mois}:${m.count}`).join(', '),
+    verdict: g.verdict,
+    justification: g.justification,
+  };
+}
+
+function renouvTableHtml(id, renouvellement) {
+  const items = (renouvellement && renouvellement.parCargroup || []);
+  if (items.length === 0) {
+    return `<div class="status-ok" style="margin-top:8px">✅ Aucune catégorie à afficher pour l'instant.</div>`;
+  }
+  return `
+    <h3 style="margin:24px 0 10px;color:var(--navy);font-size:15px">📦 Plan de commande par catégorie</h3>
+    <div class="card-sub" style="margin-bottom:10px">
+      Quantité = miroir des sorties prévues dans l'horizon choisi (jamais réduite automatiquement) ·
+      moyenne flotte coût/CA : ${renouvellement.moyenneFlotte.ratioCoutCA != null ? renouvellement.moyenneFlotte.ratioCoutCA + ' %' : '—'}
+    </div>
+    ${toolbarHtml(id, 'Rechercher classe, catégorie…', 'Plan_renouvellement')}
+    <div class="table-scroll-top" id="${id}-scrolltop"><div></div></div>
+    <div class="table-wrap" id="${id}-wrap" style="margin-bottom:24px">
+      <table>
+        <thead id="${id}-head">
+          <tr>
+            <th style="width:28px"></th>
+            ${th('classe',             'Classe')}
+            ${th('cargroup',           'Catégorie')}
+            ${th('nbVehicules',        'Parc')}
+            ${th('sortiesPrevues',     'Sorties prévues')}
+            ${th('rotation12Mois',     'Rotation 12 mois')}
+            ${th('rotationDetention',  'Rotation détention')}
+            ${th('ratioCoutCA',        'Coût/CA')}
+            ${th('verdict',            'Verdict')}
+          </tr>
+        </thead>
+        <tbody id="${id}-tbody"></tbody>
+      </table>
+    </div>`;
+}
+
+// Clé de regroupement classe×cargroup — doit rester cohérente avec normKey()
+// côté backend (renewalPlan.js), même convention "—" pour les valeurs vides.
+function renouvKey(classe, cargroup) {
+  return `${classe || '—'}|${cargroup || '—'}`;
+}
+
+// Clés "classe|cargroup" actuellement dépliées — persiste entre tris/recherches
+// (le tableau se re-rend entièrement à chaque tri/filtre, cf. _renderTable).
+const _renouvExpanded = new Set();
+
+function toggleRenouvDetail(key) {
+  if (_renouvExpanded.has(key)) _renouvExpanded.delete(key);
+  else _renouvExpanded.add(key);
+  _renderTable('renouv-tbl');
+}
+
+// Nombre total de colonnes visibles de la table "Plan de commande" (colonne
+// toggle + 8 colonnes) — sert de colspan à la ligne détail dépliée.
+const RENOUV_NB_COLS = 9;
+
+// Ligne détail dépliée : liste des véhicules à rendre dans cette catégorie
+// (sous-ensemble de alertesHorizon partageant classe+cargroup), triés par
+// date de sortie croissante — la plus proche en premier.
+function renouvDetailRowHtml(vehicules) {
+  if (vehicules.length === 0) {
+    return `<tr class="renouv-detail-row"><td colspan="${RENOUV_NB_COLS}"><div class="cell-sub" style="padding:6px 0">Aucun véhicule à rendre dans l'horizon choisi pour cette catégorie.</div></td></tr>`;
+  }
+  const items = vehicules.map(v => `
+    <div class="renouv-veh-item">
+      <span class="renouv-veh-plate">${escHtml(v.plateno || '—')}</span>
+      <span class="renouv-veh-agence">${escHtml(v.agence || '—')}</span>
+      <span class="renouv-veh-date">${v.dateSortie ? fmtDate(v.dateSortie) : '—'}</span>
+      ${flotteEcheancePill(v.joursRestants)}
+      ${flotteActionPill(v.reco ? v.reco.action : null)}
+    </div>`).join('');
+  return `<tr class="renouv-detail-row"><td colspan="${RENOUV_NB_COLS}">${items}</td></tr>`;
+}
+
+function initRenouvTable(id, rows, alertesHorizon) {
+  const cols = [
+    { key: 'classe',            type: 'string' },
+    { key: 'cargroup',          type: 'string' },
+    { key: 'nbVehicules',       type: 'number' },
+    { key: 'sortiesPrevues',    type: 'number' },
+    { key: 'sortiesParMoisTxt', type: 'string' }, // pas de colonne dédiée, incluse pour recherche/export
+    { key: 'rotation12Mois',    type: 'number' },
+    { key: 'rotationDetention', type: 'number' },
+    { key: 'ratioCoutCA',       type: 'number' },
+    { key: 'verdict',           type: 'string' },
+    { key: 'justification',     type: 'string' }, // pas de colonne dédiée, incluse pour recherche/export
+  ];
+
+  // Regroupe les véhicules de l'horizon choisi par classe×cargroup — même
+  // liste que celle qui alimente "sortiesPrevues" côté backend (miroir exact,
+  // jamais une source différente).
+  const vehParGroupe = new Map();
+  for (const v of (Array.isArray(alertesHorizon) ? alertesHorizon : [])) {
+    const k = renouvKey(v.classe, v.cargroup);
+    if (!vehParGroupe.has(k)) vehParGroupe.set(k, []);
+    vehParGroupe.get(k).push(v);
+  }
+
+  initSortableTable(id, rows, cols, r => {
+    const key = renouvKey(r.classe, r.cargroup);
+    const vehicules = (vehParGroupe.get(key) || [])
+      .slice()
+      .sort((a, b) => (a.dateSortie < b.dateSortie ? -1 : a.dateSortie > b.dateSortie ? 1 : 0));
+    const expanded = _renouvExpanded.has(key);
+    const toggleBtn = vehicules.length > 0
+      ? `<button class="btn-toggle-row" onclick="toggleRenouvDetail('${escJs(key)}')" title="${expanded ? 'Replier' : 'Déplier'} le détail des véhicules à rendre">${expanded ? '−' : '+'}</button>`
+      : '';
+    const mainRow = `
+      <tr>
+        <td>${toggleBtn}</td>
+        <td><span class="pill ${r.classe === 'VU' ? 'pill-blue' : 'pill-grey'}">${escHtml(r.classe || '—')}</span></td>
+        <td><strong>${escHtml(r.cargroup || '—')}</strong>${!r.classable ? ` <span class="pill pill-grey" title="Moins de 3 véhicules — non classable">peu de données</span>` : ''}</td>
+        <td>${r.nbVehicules ?? '—'}</td>
+        <td class="cell-wrap">
+          ${r.sortiesPrevues ?? 0}
+          ${r.sortiesParMoisTxt ? `<div class="cell-sub">${escHtml(r.sortiesParMoisTxt)}</div>` : ''}
+        </td>
+        <td>${r.rotation12Mois != null ? r.rotation12Mois + ' %' : '—'}</td>
+        <td>${r.rotationDetention != null ? r.rotationDetention + ' %' : '—'}</td>
+        <td>${r.ratioCoutCA != null ? r.ratioCoutCA + ' %' : '—'}</td>
+        <td class="cell-wrap">
+          ${renouvVerdictPill(r.verdict)}
+          <div class="cell-sub">${escHtml(r.justification || '')}</div>
+        </td>
+      </tr>`;
+    return expanded ? mainRow + renouvDetailRowHtml(vehicules) : mainRow;
+  });
+}
+
+function flotteSetupHtml() {
+  return `
+    <div class="empty" style="text-align:left;max-width:700px;margin:0 auto">
+      <h3 style="color:var(--navy);margin-bottom:10px">🎯 Cockpit flotte — configuration requise</h3>
+      <p style="margin-bottom:10px">Cet onglet lit le backend <strong>backend-pilotage</strong> (Railway), distinct du reporting wheelsys.</p>
+      <ol style="margin:0 0 12px 18px;line-height:1.8">
+        <li>Déploie <code>backend-pilotage</code> sur Railway (<code>deploy.bat</code> = push GitHub).</li>
+        <li>Copie l'URL publique du service (ex. <code>https://backend-pilotage-production.up.railway.app</code>).</li>
+        <li>Renseigne-la dans <code>index.html</code> → constante <code>PILOTAGE_API</code>, puis redéploie le front (<code>deploy.bat</code>).</li>
+      </ol>
+      <p style="color:var(--muted);font-size:12px">Tant que <code>PILOTAGE_API</code> est vide, les données de flotte ne peuvent pas s'afficher.</p>
+    </div>`;
 }
 </script>
 </body>

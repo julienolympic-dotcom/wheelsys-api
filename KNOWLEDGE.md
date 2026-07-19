@@ -135,6 +135,71 @@ stationfromcode     agence de départ (clé d'agrégation par agence)
 (type client), `stationfromcode` (agence), et catégorie Utilitaire/Tourisme
 dérivée de `cargroup` (D-007 ⚠️ hypothèse à confirmer).
 
+### 4.1ter Champs facture — `custinvoice`/`agentinvoice` (rentalagreementfinancials) et rapport `invoicesauditreport` ✅ VALIDÉ 2026-07-19 (D-025)
+
+> Découvert en corrigeant le bug CA facturé D-024/D-025 — voir DECISIONS.md D-025
+> pour le détail complet du bug et de la correction.
+
+**`rentalagreementfinancials` — champs facture non documentés avant** (présents
+sur chaque contrat, `dddf#dt`/`mtdtype` quelconque) :
+```
+custinvoice    liste de numéros de facture du contrat, séparés par virgule
+               (ex. "INV-208077,INV-208978,...,CRE-1138841") — un contrat
+               facturé une seule fois n'a qu'un seul token ; un contrat à
+               facturation périodique (LLD, longue durée) peut en avoir des
+               dizaines sur sa durée de vie. Le préfixe CRE- = avoir, pas une
+               facture. Vide pour les réservations sourcées par un agent/broker.
+agentinvoice   même format, peuplé à la place de custinvoice quand le contrat
+               est sourcé par un agent/broker (bookingsourcecode VIR/OPT/COM
+               observés) — la facture va à l'agent, pas au client direct.
+invoices       présent mais vide sur tout l'échantillon observé (~18 lignes) —
+               usage inconnu, probablement lié à un scénario non rencontré
+               (grouprental ?).
+```
+⚠️ Ces deux champs donnent une liste de références mais **pas le montant par
+facture individuelle** — insuffisants seuls pour calculer un CA facturé exact
+par période sur un contrat multi-facturation (`netcharge`/`custcharge` restent
+le total cumulé du contrat entier). Voir `invoicesauditreport` ci-dessous pour
+la source qui donne le montant par facture.
+
+**Rapport `invoicesauditreport`** (`/ui/reports/invoicesauditreport.aspx`,
+jamais exploré avant, trouvé par Julien) — **vrai grand livre facture : une
+ligne = une facture**, avec son propre montant et sa propre date d'émission.
+Appel identique aux autres rapports (`GenerateReportData`,
+`browser:"invoicesauditreport"`), seul filtre requis confirmé : `dddf#dt`
+(`ftDateRange`) — pas besoin de `mtrtype`/`mtdtype`/`mtstationmode`. Pas de
+filtre station (`edstations`) confirmé — à filtrer côté appelant sur le champ
+`station` de la réponse si besoin.
+
+Champs clés :
+```
+id                  identifiant interne de la facture
+invoice             numéro affiché ("INV-218894" facture normale, "CRE-..." avoir)
+docinfo             type de document — valeurs observées : "Rental Invoice",
+                    "Adjustment Rental Invoice", "Adjustment Rental Credit Note"
+                    (= avoir, netamount déjà négatif)
+displaydocno        numéro de contrat ("RNT-XXXXX") — clé de jointure vers
+                    rentalagreementfinancials
+partner_name        nom client · partner_codeid  entityId client (même
+                    convention que corporatecodeid ailleurs — nullité pour un
+                    client particulier non vérifiée, à confirmer)
+invoicedateclean    ✅ vraie date d'émission de CETTE facture (pas du contrat)
+netamount           ✅ montant HT de CETTE facture (pas le cumulé du contrat)
+tax1amount/tax2amount, total  TVA / montant TTC de cette facture
+invoicepayment, balance   payé / restant dû sur cette facture
+station/stationname       agence
+plateno             véhicule
+void, cancelling    booléens — à exclure du CA si vrai (aucune occurrence
+                    observée sur l'échantillon testé, mais champs présents
+                    pour cette raison)
+```
+✅ **Sommer `netamount` sur les lignes filtrées par `invoicedateclean` dans une
+période donne le CA HT réellement facturé sur cette période** — y compris pour
+les contrats multi-facturation, sans le bug de surestimation de D-024 (chaque
+ligne ne compte que son propre montant, jamais le cumulé du contrat). Les
+avoirs (`netamount` négatif) s'additionnent naturellement, pas besoin de
+logique de soustraction séparée.
+
 ### 4.3 Rapport `revenueperstationreport` ("Revenue per Station Report") ✅ VALIDÉ 2026-06-12
 
 Filtres :
@@ -266,6 +331,25 @@ servdays                         jours en service/atelier
 | 2026-06-25 | Alertes plan de flotte : nombreux `joursRestants < 0` (véhicules présents au-delà de leur sortie théo) → distinguer « dépassé » vs « à venir » | Évite une liste « prochaines sorties » trompeuse (affiche 2021) |
 | 2026-06-25 | `backend-pilotage` est un **dépôt git séparé** (GitHub `wheels-backend-pilotage`) ; le code métier se commit LÀ, pas dans le repo parent | Le `git add .` du parent n'enregistrait qu'un gitlink (mode 160000), pas les fichiers |
 | 2026-06-25 | Git depuis le sandbox sur le mount OneDrive = non fiable (impossible de supprimer `index.lock`, `unknown index entry format`) → faire les opérations git côté Windows | Évite stale locks et corruption d'index ; le sandbox sert au code/tests, pas au git du parent |
+| 2026-06-30 | Cockpit décision : `reco.js` (SORTIR/PROLONGER/SURVEILLER, âge×utilisation, seuil 70 %) + KPIs € → passe du listing à l'aide à la décision (79 tests offline verts) | Niveau d'ambition relevé (Niveau 3-4) |
+| 2026-06-30 | Base Flotte (SharePoint, 62 col, 512 « En parc ») fournit la finance absente de wheelsys ; join par plaque validé (FD-780-TN) | Débloque l'éco réelle des décisions (résiduelle, capital, contrat) |
+| 2026-06-30 | **PIÈGE Cowork** : le mount OneDrive sert des versions TRONQUÉES des fichiers JS juste après édition → tester via reconstruction `/tmp` (heredoc), jamais via `cp` du mount | Évite des faux « SyntaxError: Unexpected end of input » |
+| 2026-06-30 | Sandbox Cowork = **aucun accès réseau externe** (wheelsys, Railway, SharePoint tous injoignables → curl 000 / timeout) → tout test réseau se fait côté user | Cadre la stratégie de validation (pur offline + smoke local) |
+| 2026-06-30 | Base Flotte a une plage Excel gonflée (1 048 434 lignes) → SheetJS avec `sheetRows` borné (sinon timeout) | Parsing xlsx fiable côté backend |
+| 2026-07-13 | App Azure `wheels-report-graph` créée par Xefi avec **Sites.Selected** (pas Sites.Read.All) + droit `read` accordé sur site Comptabilite via `New-MgSitePermission` — GRAPH_TENANT_ID/CLIENT_ID/CLIENT_SECRET renseignés dans `.env` local | D-012 mis à jour ; aucun changement code requis, mais premier test live non encore fait — voir `test/smoke-finance.js` |
+| 2026-07-13 | Smoke test live OK (520 véhicules en parc mappés). Mais `coutDetentionMensuel` ("Cout de détention mensuel") = 0 sur 519/520 véhicules en parc — colonne réalisée, renseignée seulement après sortie du véhicule. Fallback existant `?? echeanceMensuelleHT` dans `toPlanItem` (planFlotte.js) ne se déclenchait jamais car `??` ne tombe pas sur `0` (seulement null/undefined) | **Bug silencieux corrigé** : `coutMensuelSortir` et `coutMensuel` par véhicule étaient quasi toujours à 0 pour le parc actif. Fix : traiter `0` comme absent pour ce champ précis, fallback vers `echeanceMensuelleHT`. Confirmé par Julien (colonne "AA" échéance mensuelle HT). Test de non-régression ajouté (`planFlotte.test.js`, 39/39 verts) |
+| 2026-07-13 | Fichier Base Flotte a **deux colonnes** "Cout de détention" : "...théorique mensuel hors frais financier" (peuplée, parc actif) vs "Cout de détention mensuel" (vide/0, parc actif — réalisée post-sortie) | Piège de nommage à connaître si la Compta modifie encore ce fichier — vérifier l'en-tête exact avant tout mapping de colonne financière |
+| 2026-07-14 | Cockpit UI v2 livré dans `wheelsys-reporting/index.html` (onglet "🎯 Cockpit flotte", ex-"Plan de flotte") : table unifiée sur `fileActions`/`tousVehicules` avec badges action/urgence, KPIs €, filtres dropdown (agence/classe/action/urgence) combinables avec la recherche texte existante, tri toutes colonnes, export Excel. Moteur de tri/filtre générique (`initSortableTable`) étendu avec `dropdownFilters` — rétrocompatible (les 4 autres onglets ne l'utilisent pas, comportement inchangé, vérifié par relecture) | Cockpit décisionnel opérationnel sans nouvelle dépendance (toujours vanilla JS + XLSX déjà chargé) |
+| 2026-07-14 | **Piège Cowork confirmé à nouveau** : lecture bash (`cat`/`tail`/`wc -l`) du mount OneDrive juste après un Edit renvoie un contenu tronqué/périmé, alors que l'outil `Read` et `git status`/`git diff` (qui touchent le vrai fichier) voient la version à jour. Le sandbox ne peut de toute façon pas ouvrir de navigateur → validation faite via (1) relecture complète par `Read`, (2) `git status` confirmant le fichier modifié, (3) tests Node isolés des fonctions pures (mapping, filtres, helpers) sur données représentatives — 15/15 verts | Ne jamais conclure à un bug depuis une lecture bash du mount juste après édition ; re-vérifier via `Read` ou `git diff` d'abord |
+| 2026-07-14 | **Cockpit vide en prod (tout à 0)** : cause = backend Railway déployé restait sur le commit `12e04eb` (25/06, dates seules) — `reco.js`/`finance.js`/`graph.js`/`financeSource.js` et le fix `coutDetentionMensuel` n'avaient jamais été commités/poussés (`git status` les montrait `??`/modifiés depuis le 25/06). Pas un bug du cockpit v2 : dégradation gracieuse correcte (`—` sur champs absents) | Avant de diagnostiquer un souci de données sur le cockpit, vérifier `git log --oneline -3` côté backend-pilotage ET la version réellement déployée sur Railway |
+| 2026-07-14 | Cockpit déployé mais finance à 0 partout : `financeDisponible=false` côté réponse `/api/plan-flotte` (dégradation propre déjà prévue) — cause probable = variables `GRAPH_*`/`FINANCE_SHARE_URL` absentes sur Railway (mises seulement en local pour le smoke test). Ajout d'un bandeau d'alerte dans le cockpit quand `financeDisponible`/`utilisationDisponible` est faux, pour ne plus jamais deviner ce genre de panne | Toujours vérifier les variables d'env **du service déployé**, pas seulement le `.env` local, avant de conclure à un bug de calcul |
+| 2026-07-14 | Table cockpit à 15 colonnes = scroll horizontal forcé pour voir les colonnes finance. Fix : Catégorie/Groupe repliés en sous-texte sous Classe, Type de contrat replié sous Coût/mois (12 colonnes visibles), colonne Plaque figée (`position:sticky`) pendant le défilement — classe CSS dédiée `.tbl-sticky-col1`, scopée au seul tableau cockpit (pas de risque sur les 4 autres onglets) | Rappel UX : une table avec beaucoup de champs gagne à replier les champs secondaires en sous-texte plutôt qu'en colonnes séparées |
+| 2026-07-14 | **`backend-pilotage` sous OneDrive = lock Git à répétition** (`index.lock` puis `HEAD.lock`, "File exists") pendant commit/push, même OneDrive mis en pause — cause probable : 2 process "Git for Windows" restés actifs (visibles Gestionnaire des tâches) tenant le lock. Résolu en tuant ces process puis `del .git\HEAD.lock` (cmd, pas PowerShell — `Remove-Item` n'existe qu'en PowerShell) | Si commit/push échoue en boucle sur un lock : vérifier Gestionnaire des tâches pour des process `git.exe`/`Git for Windows` résiduels à tuer avant de re-supprimer les fichiers `.lock` ; confirmer le shell utilisé (cmd vs PowerShell) avant de donner une commande |
+| 2026-07-19 | `clientLink()` (index.html) existait déjà mais n'était appelé nulle part (code mort depuis sa création, cf. §19) — réutilisé tel quel pour l'onglet Stats clients (D-023) au lieu d'écrire un nouveau helper | Toujours grep les helpers existants avant d'en écrire un nouveau — celui-ci faisait déjà exactement ce qu'il fallait |
+| 2026-07-19 | QA de l'onglet Stats faite en injectant un jeu de données synthétique dans la console du Browser pane (mock `allRaw`/`impaye`, `renderStats()` appelé directement) plutôt qu'un vrai login wheelsys (identifiants non disponibles en sandbox) | Pattern réutilisable : pour tester visuellement une vue qui consomme `json.allRaw`/`json.impaye`, pas besoin d'un vrai backend — injecter des données synthétiques directement dans les fonctions `render*()` suffit |
+| 2026-07-19 | Catalogue des 82 rapports wheelsys capturé via Claude in Chrome (session déjà connectée de Julien) en lisant directement le DOM du menu Reports (`ul.dropdown-menu.multi-level`, 9ᵉ élément = catégories Reports) plutôt qu'en cliquant chaque sous-menu un par un — 100 % lecture, aucun rapport exécuté | Voir `wheelsys-reports-catalog.md` (racine projet). Piège : le menu contient AUSSI une copie mobile (`mm-list.mm-panel`, offcanvas) avec les mêmes liens dupliqués — dédoublonner par slug `browser` (regex sur le `.aspx`) plutôt que par position DOM |
+| 2026-07-19 | Dans le Browser pane (fichier `file://` hors dossier projet, rendu en "static snapshot"), `getBoundingClientRect()`/`offsetWidth` sur des éléments peuvent renvoyer des valeurs fausses (ex. 40px de large pour une tuile visiblement large à l'écran) alors que la capture d'écran montre le bon rendu | Ne jamais diagnostiquer un bug de mise en page depuis une mesure JS (`getBoundingClientRect`) dans ce sandbox sans la confirmer par une capture d'écran — la capture est la seule source fiable pour la mise en page dans cet environnement |
+| 2026-07-19 | D-024 : Julien a demandé le "CA facturé" (pas checkout) — a révélé que le commentaire existant sur `mtdtype=1` ("date de création du contrat") contredit KNOWLEDGE.md §4.1 ("invoice"). Utilisé quand même sur sa demande explicite, mais flaggé comme non validé (bandeau permanent dans l'UI) | Une ambiguïté déjà présente dans la doc (ici depuis le tout début du projet) peut rester dormante des mois avant qu'une nouvelle feature la révèle — ne jamais la trancher silencieusement, toujours la signaler à l'utilisateur |
 
 ---
 
@@ -344,8 +428,14 @@ carstatus    statut courant ("Available", "Rented (Broker)", "Grounded"…)
 ```
 
 ### Autres rapports identifiés (non encore explorés)
-Voir `learn-2026-06-24.md` pour la liste des 86 avec leurs noms de `browser`.
-Priorité suivante : `claimsreport`, `revenueperstationreport` (avec filtres complets), `salesperformancereport`.
+⚠️ `learn-2026-06-24.md` ne contient PAS la liste des 86 malgré ce que ce
+paragraphe indiquait avant — seulement les 6 rapports approfondis cette
+session-là (la liste brute n'avait jamais été sauvegardée). **Liste complète
+et à jour (82 rapports, 9 catégories, capturée 2026-07-19 par lecture directe
+du menu Reports)** : voir [`wheelsys-reports-catalog.md`](./wheelsys-reports-catalog.md)
+à la racine du projet — inclut des pistes 👀 déjà repérées pour compléter
+D-025 (`uninvoicedrentalchargesreport`, `accruedrevenuereport`,
+`monthlyrentalrevenuereport`, `shortlongtermrevenueanalysis`).
 
 ---
 
@@ -520,6 +610,375 @@ inoffensif. Relâcher à `>=20` supprimerait le bruit.
 - **Hygiène parent** : pas de `.gitignore` racine à l'origine → `wheelsys-reporting/
   node_modules` avait été versionné. `.gitignore` racine ajouté le 2026-06-25 (node_modules,
   .env, logs, build, .vercel) ; purge via `git rm -r --cached wheelsys-reporting/node_modules`.
+
+---
+
+## 13. Cockpit décision de flotte + couche finance ✅ 2026-06-30
+
+> Refonte « game changer » : du listing vers l'aide à la décision. Backend prêt
+> (79 tests offline verts) ; UI cockpit v2 + setup Azure = à faire (voir ROADMAP).
+
+### Moteur (backend-pilotage, fonctions pures testées)
+- `src/lib/reco.js` — `recommander({joursRestants, utilperc}, {seuilUtil})` → D-011.
+- `src/lib/planFlotte.js` (enrichi) — attache par véhicule : utilisation, reco,
+  **finance** (résiduelle, capital/engagement restant, coût/mois, type contrat,
+  `financeFlag` soldé/engagement) ; produit **KPIs** (parAction, loyer/jour,
+  `capitalImmobiliseSortir`, `residuelleRecuperableSortir`, `coutMensuelSortir`,
+  utilMoyenne — € en Decimal.js), **timeline** mensuelle, **fileActions** (tri score),
+  **planGroupe** (agence×catégorie).
+- `src/lib/finance.js` — `buildFinanceByPlate(rows)` : résolution tolérante des
+  en-têtes (fichier manuel), filtre « En parc », clé plaque normalisée. Validé sur
+  données réelles (512 vh).
+
+### Source finance (SharePoint → Graph)
+- `src/graph.js` — token app-only + `downloadSharedFile(shareUrl)` (encodage `u!` du
+  lien de partage → `/shares/{id}/driveItem/content`).
+- `src/financeSource.js` — fetch + `XLSX.read(buf, { sheetRows })` + cache 6 h.
+- Route `/api/plan-flotte` : merge utilisation + finance en **best-effort**
+  (`utilisationDisponible` / `financeDisponible` dans la réponse ; dégrade sans planter).
+- **Env requis** (Railway) : `GRAPH_TENANT_ID`, `GRAPH_CLIENT_ID`, `GRAPH_CLIENT_SECRET`
+  (permission app `Sites.Read.All`, consentement admin), `FINANCE_SHARE_URL`.
+
+### Base Flotte — schéma utile (fichier SharePoint Comptabilité)
+- Clé : `N° immat.` (plaque). Filtre : `Etat du Parc` = « En parc » (≈512 ; « Sorti » 1586).
+- Champs financiers : `type contrat CB LDD BB CC`, `Valeur achat HT`, `Valeur résiduelle`,
+  `Echéance mensuelle HT`, `Cout de détention mensuel`, `Engagement Total restant`,
+  `K Total restant`, `date sortie prévue (buy back ou LLD)`.
+
+---
+
+## 14. Fix cockpit v2 — garde horizon (D-014) + avdays + mise en page ✅ 2026-07-14
+
+> Suite du retour utilisateur sur le cockpit v2 déployé (§13/D-013). Trois
+> retours de Julien traités dans la même session : bug de recommandation
+> (SORTIR trop tôt), doute sur un 0 % d'utilisation, mise en page (colonnes
+> hors écran).
+
+### Bug réel : SORTIR recommandé hors période de sortie
+- **Repéré par Julien** : HL-431-TH, échéance théorique dans 657 j (véhicule
+  tout juste entré en parc), utilisation 0 % → le cockpit affichait quand
+  même **SORTIR**. `recommander()` (D-011) ne testait que `utilperc < seuil`,
+  jamais la proximité réelle de l'échéance.
+- **Fix** : garde `enPeriodeSortie` dans `reco.js` (D-014) — voir DECISIONS.md.
+  `horizonJours` transmis par `buildPlanFlotte` (déjà calculé pour
+  `alertesHorizon`, réutilisé sans nouveau paramètre).
+- **Tests** : `reco.test.js` +5 cas, `planFlotte.test.js` +6 cas (véhicule
+  synthétique P4 répliquant le cas réel).
+
+### Correction d'une proposition erronée (rentals → avdays)
+- J'avais proposé d'afficher `rentals` (nombre de locations) pour aider Julien
+  à juger la fiabilité d'un 0 % d'utilisation. **Erreur** : si `utilperc = 0`,
+  alors `rentals` vaut nécessairement 0 aussi (0 % = 0 jour loué = 0 location) —
+  ça n'apporte aucune information supplémentaire. Le champ réellement utile est
+  le **dénominateur** (`avdays`, jours disponibles sur la fenêtre) : un 0 % sur
+  350 jours disponibles n'a pas le même poids qu'un 0 % sur 12 jours.
+  Corrigé avant implémentation (cf. D-015). Leçon : vérifier la formule
+  (numérateur/dénominateur) avant de proposer un champ de contexte, pas
+  seulement son nom.
+
+### Mise en page cockpit
+- `main.tab-flotte-wide` (1800px, togglé dans `showTab()`) + barre de
+  défilement horizontal dupliquée en haut (`syncTopScroll`, id `{table}-scrolltop`
+  / `{table}-wrap`) — cf. D-015.
+- Colonne "Catégorie" retirée du sous-texte Classe (doublon avec VP/VU) — ne
+  reste que `cargroup`, plus granulaire.
+
+### ⚠️ Piège environnement — troncature de fichiers via le mount OneDrive (sandbox)
+En essayant de lancer `node test/planFlotte.test.js` via bash juste après l'avoir
+édité (Edit **et** Write, y compris une réécriture complète), le fichier lu par
+bash restait **tronqué à 11067 octets** systématiquement, coupant `test/
+planFlotte.test.js` en plein milieu de la dernière ligne. Le tool `Read` voyait
+le contenu complet et correct à chaque fois (source de vérité). Contrairement au
+piège déjà documenté (§ pré-existant, lecture stale ponctuelle), ici la troncature
+était **stable et reproductible**, y compris après une réécriture complète — pas
+juste un délai de sync. Fichier plus petit (`reco.js`, `planFlotte.js`, copiés via
+`cp`) : lus intégralement sans problème. Fichier HTML plus gros (`index.html`,
+~74 Ko) : lu intégralement sans souci via un script Python. Cause exacte non
+identifiée (peut-être liée au nombre de caractères multi-octets UTF-8 dans ce
+fichier précis, ou à un état de cache OneDrive local à ce fichier) — **contournement
+utilisé** : copier les fichiers source (`src/lib/*.js`, sans accents/emphase
+UTF-8 lourde) dans `/tmp` et y exécuter une suite de vérification équivalente en
+ASCII pur, pour valider la logique sans dépendre du mount. Les fichiers de test
+officiels (`reco.test.js`, `planFlotte.test.js`) restent corrects sur disque
+(vus via `Read`) ; **Julien doit les relancer lui-même** (`node test/reco.test.js`
++ `node test/planFlotte.test.js`, ou simplement `deploy.bat` qui les inclut) pour
+confirmer le vert avant de pousser.
+
+---
+
+## 15. D-016 — Deuxième bug SORTIR : l'horizon d'affichage n'est pas une règle métier ✅ 2026-07-14
+
+> Le fix D-014 (§14) était **insuffisant** : il gardait SORTIR indexé sur
+> `horizonJours`, qui est l'horizon d'AFFICHAGE choisi par Julien (3 à 36 mois
+> dans le menu du cockpit), pas une fenêtre de décision fixe. Avec un horizon
+> large sélectionné, la garde D-014 s'annule d'elle-même — Julien a retrouvé
+> HL-017-TH (655 j, 80 km) en SORTIR malgré le fix précédent.
+
+### Leçon
+Ne jamais confondre un **paramètre d'affichage/scoping** (ce que l'utilisateur
+choisit de voir) avec une **règle de décision métier** (ce qui déclenche une
+action). `horizonJours` sert à filtrer `alertesHorizon`/`fileActions` — c'est
+légitimement variable. La décision SORTIR doit reposer sur une constante
+métier fixe (ici 90 j) + un critère indépendant du temps (kilométrage), pas
+sur un menu déroulant de l'UI.
+
+### Fix D-016
+- `reco.js` : `FENETRE_SORTIE_JOURS_DEFAUT = 90` (repris du seuil déjà utilisé
+  pour la pastille orange « proche » de l'échéance dans `index.html`) +
+  `SEUIL_KM_SORTIE_DEFAUT = 90000` (donné par Julien). SORTIR exige
+  `utilperc < seuil` **ET** (proche de la fenêtre fixe **OU** km ≥ seuil).
+- `planFlotte.js` : `toPlanItem` calcule `kmActuel` (déjà présent comme champ
+  `km` de sortie) et le transmet à `recommander()` ; `horizonJours` retiré du
+  chemin de décision (reste uniquement pour le filtrage d'affichage).
+- Règle Julien (2026-07-14) sur sous-utilisation modérée : **miroir + alerte**,
+  pas de réduction automatique de quantité — la justification textuelle
+  suffit, la quantité recommandée reste le nombre de sorties prévues.
+- Test de non-régression explicite : `buildPlanFlotte` avec `horizon: 36` ne
+  doit **jamais** faire basculer un véhicule hors fenêtre fixe vers SORTIR —
+  c'est exactement le bug qui s'est reproduit une première fois.
+
+---
+
+## 16. D-017 — Plan de renouvellement par catégorie ✅ 2026-07-14 (backend+front, non déployé)
+
+> Vision `/legendary` → plan `/manager` (5 blocs) → exécuté dans la foulée du
+> fix D-016. Nouveau moteur `renewalPlan.js` + intégration route + 3 blocs UI.
+
+### Bloc 1 — `src/lib/renewalPlan.js` (`buildCategoryStats`)
+- Groupe les véhicules (`tousVehicules`) par `classe|cargroup`.
+- Par groupe : `rotation12Mois`/`rotationDetention` (moyennes Decimal.js),
+  `coutMensuelTotal`/`caTotal`/`ratioCoutCA` (Decimal.js, annualisé,
+  `null` si CA=0 — jamais Infinity/NaN), `sortiesPrevues`/`sortiesParMois`
+  (miroir depuis `alertesHorizon`, indépendant de `reco.action`), `classable`
+  (≥3 véhicules), `verdict` + `justification` traçable.
+- `moyenneFlotte.ratioCoutCA` = agrégat réel (`Σcoût×12/ΣCA`), **pas** une
+  moyenne des ratios par groupe.
+- `top3Rotation`/`flop3Rotation` : classables uniquement, triés, max 3.
+- **25 tests offline** (`test/renewalPlan.test.js`) : jeu de données à 5 groupes
+  avec valeurs calculées et vérifiées via un script Node isolé avant écriture
+  des assertions (éviter d'embarquer une erreur d'arithmétique à la main dans
+  un test financier).
+
+### Bloc 2 — Route `/api/plan-flotte`
+- `fetchUtilLifetimeByPlate()` : même rapport `fleetutilizationreport`, fenêtre
+  large (2010→aujourd'hui) au lieu de 12 mois glissants — **best-effort
+  indépendant** (si ça échoue, seule `rotationDetention` est dégradée,
+  `rotationDetentionDisponible: false` dans la réponse).
+  utilLifetimeMap.
+- `utilpercDetention` threadé dans `planFlotte.js` (`toPlanItem`) comme
+  `avdays`/`utilperc` — même pattern, nouveau paramètre `utilLifetimeMap`.
+- Réponse enrichie : `renouvellement` (sortie de `buildCategoryStats`),
+  `rotationDetentionDisponible`.
+- **`test/smoke-renewal-plan.js`** créé — **à lancer par Julien en local**
+  (sandbox ne joint pas wheelsys.io) : compare `avdays` (fenêtre large) des
+  10 véhicules les plus récemment entrés à leur nombre réel de jours de
+  détention. Si `avdays` ≈ largeur de plage (des milliers de jours) au lieu
+  de coller à la réalité → **hypothèse rejetée**, revoir l'approche avant de
+  faire confiance à `rotationDetention` en prod. **Aucune garantie donnée
+  tant que ce smoke test n'a pas tourné.**
+
+### Bloc 3/4 — Frontend (`wheelsys-reporting/index.html`)
+- Vignette « Prochaines sorties » (sélecteur 10/20/30, réutilise
+  `tousVehicules` déjà trié par date — aucun refetch, juste un slice + rendu
+  via `_flotteData` mis en cache après le premier chargement).
+- Top 3 / Flop 3 catégories (mini-cartes, classe/cargroup/rotation×2/coût-CA/verdict).
+- Tableau « Plan de commande » (`renouv-tbl`) — même moteur générique
+  (`initSortableTable`) que les autres onglets : tri/filtre/recherche/export
+  Excel gratuits, cohérent avec le reste du cockpit.
+- Bandeau config si `rotationDetentionDisponible === false` (même pattern que
+  finance/utilisation).
+- CSS ajoutée : `.mini-card`/`.mini-card-row`/`.mini-card-top`/`.mini-card-sub`.
+
+### ⚠️ Piège environnement (récurrent, cf. §14) — troncature bash sur `planFlotte.js`
+Pendant cette session, `node test/planFlotte.test.js` a de nouveau échoué avec
+une troncature à 8907 octets pile au même endroit (`aVenir: aler|`) que la fois
+précédente — cette fois **persistante** (relancée après plusieurs secondes,
+même résultat), alors que `Read` montrait un fichier complet et correct (206
+lignes) et qu'une copie **recréée via heredoc bash** (pas `cp`, qui repasse par
+le même mount) dans `/tmp` compilait et passait 47/47 tests sans problème.
+Confirme : le mount OneDrive↔sandbox peut renvoyer une version tronquée d'un
+fichier précis de façon stable sur toute une session, indépendamment de l'outil
+utilisé pour le lire (`cat`, `wc`, `cp`, `node --check`) — seul un heredoc
+écrivant directement le contenu (obtenu via `Read`) dans `/tmp` contourne le
+problème. Toujours vérifier via `Read` avant de conclure à un bug réel, et ne
+jamais bloquer la livraison sur un échec `node test/*.js` dans ce sandbox sans
+avoir confirmé via `Read` que le fichier source est correct.
+
+**Récidive 2026-07-16** : même symptôme sur `wheelsys-reporting/index.html`
+(84 Ko) — troncature stable à 81580 caractères, coupant en plein milieu du
+tableau `cols` de `initRenouvTable`, bien avant `</script></body></html>`
+(confirmés présents et corrects via `Read`, lignes 1973-1975). Persistant sur
+plusieurs tentatives (pas juste une lecture immédiatement après écriture).
+Semble corrélé à la taille du fichier plutôt qu'à un fichier précis — les
+petits fichiers (`reco.js`, `renewalPlan.js`) n'ont jamais été affectés cette
+session, seuls les plus gros (`planFlotte.js` 206 lignes, `index.html` 1976
+lignes) l'ont été. Hypothèse : buffer/chunk de sync à taille fixe côté mount.
+Contournement : `Read` (tool) reste la seule source fiable pour les gros
+fichiers dans ce sandbox ; ne pas utiliser `node --check`/`cat`/`wc` via bash
+comme preuve d'un problème réel sur un fichier volumineux sans avoir d'abord
+comparé au contenu vu par `Read`.
+
+---
+
+## 17. ✅ Incohérence dateSortie cockpit vs Excel — RÉSOLU 2026-07-16 (D-019)
+
+> Signalé par Julien : HK-348-VV affiche une date de sortie cockpit
+> (2026-11-30) très différente de la « date sortie prévue » du fichier Excel
+> "Base Flotte" (~29/05/2026 d'après les données collées). Julien : *« le but
+> est d'avoir des données fiables, si je me base sur des données fausses alors
+> il est impossible de piloter correctement »*. **Pas encore résolu** — décision
+> business en attente, voir ci-dessous.
+
+### Cause racine confirmée par le code (certaine, indépendante de l'exemple)
+- `buildPlanFlotte` → `toPlanItem` → `computeDateSortie` (`rules.js`, D-009)
+  calcule `dateSortie` **uniquement** à partir de wheelsys : priorité à
+  `vehicle.plannedexitdate`, sinon `fleetentry + 2 ans (VP) / 3 ans (VU)`.
+- Le champ Excel `date sortie prévue (buy back ou LLD)` (§13, déjà résolu et
+  mappé dans `financeByPlate[plaque].dateSortiePrevue`) est bien capturé côté
+  finance mais **jamais lu** pour calculer `dateSortie` — il n'est même pas
+  surfacé dans l'objet retourné par `toPlanItem`. Deux sources de date
+  totalement indépendantes, jamais recoupées : c'est cela, et non un bug de
+  calcul dans l'une ou l'autre formule, qui explique l'écart observé.
+
+### Outil créé pour mesurer l'ampleur réelle
+- `test/smoke-coherence-dates.js` (LECTURE SEULE) : pour chaque véhicule
+  présent dans wheelsys ET dans le fichier Excel avec une `dateSortiePrevue`
+  renseignée, compare la date cockpit (D-009) à la date Excel parsée
+  (gère chaîne `DD/MM/YYYY`, numéro de série Excel, ou `Date`). Classe
+  OK (écart ≤ 30 j) / DIVERGENT (> 30 j) / EXCEL_NON_PARSABLE, imprime le
+  détail du cas HK-348-VV et un taux de divergence global.
+- **À lancer par Julien** (`node test/smoke-coherence-dates.js` depuis
+  `backend-pilotage/`) avant toute décision — permet de savoir si le problème
+  est isolé (contrat renégocié, Excel pas à jour pour ce véhicule) ou
+  systémique (>10 % du parc comparable), ce qui change complètement la
+  réponse à apporter.
+
+### Décision (Julien, 2026-07-16) — voir D-019 pour le détail complet
+Excel prime sur wheelsys quand `dateSortiePrevue` est renseignée pour le
+véhicule ; wheelsys reste le repli quand Excel est absent. Implémenté dans
+`rules.js#computeDateSortie` (nouveau paramètre `dateSortiePrevueExcel`,
+bypass de l'ajustement saisonnier côté Excel) + `planFlotte.js` (thread le
+`fin.dateSortiePrevue`, déjà normalisé en ISO par `finance.js#parseExcelDate`)
++ nouveau champ traçable `sourceDateSortie` (`'excel'|'wheelsys'|null`)
+surfacé dans le cockpit (pastille) et l'export Excel. 100 tests (finance +
+rules + planFlotte) passent, cas réel HK-348-VV couvert bout-en-bout.
+
+## 18. ✅ D-020 : hiérarchie 3 niveaux, `plannedexitdate` (wheelsys) abandonné — RÉSOLU 2026-07-16
+
+> Julien, suite à D-019 : pour la majorité des véhicules sans `dateSortiePrevue`
+> Excel, une source plus fiable que la règle générique était inutilisée : la
+> colonne Q "Nbre de mois de financement prévu". Verbatim : *« pour les VU la
+> durée max de détention est de 36 mois il faut donc indiquer en date de
+> retour la date de réception en parc + 36 mois. […] hiérarchie : évite les
+> replis sur wheelsys car les données ne sont pas fiables concernant ces
+> dates. on reste sur 1 puis 2 et en dernier la règle des VP 2 ans et VU 3 ans »*.
+
+### Décision — voir D-020 pour le détail complet
+Hiérarchie à 3 niveaux dans `rules.js#computeDateSortie` : (1) Excel
+`dateSortiePrevue` exacte (inchangé D-019) → `sourceDateSortie: 'excel'` ;
+(2) `fleetentry` + `dureeFinancementMois` Excel (colonne Q), plafonnée à la
+durée max de classe → `'excel_duree'` ; (3) repli générique classe (VP 24 mois
+/ VU 36 mois depuis `fleetentry`, comportement D-009 historique) → `'wheelsys'`.
+**`vehicle.plannedexitdate` n'est plus jamais lu**, à aucun tier — changement
+de comportement plus large que D-019, puisque même les véhicules dont la date
+wheelsys semblait juste peuvent désormais afficher une date différente.
+
+### Point à confirmer par Julien
+Le plafond de classe au tier 2 (VP 24 mois) est une extension par symétrie de
+la règle qu'il a énoncée explicitement pour les VU (36 mois) — pas une valeur
+qu'il a confirmée mot pour mot pour les VP. À valider à la relecture.
+
+### Tests
+`rules.test.js` — 9 cas D-009 réécrits (3 dépendaient de `plannedexitdate`,
+fixtures conservées avec une valeur volontairement différente pour prouver
+qu'elle est ignorée) + 11 cas D-020 (tier 2, plafond VU/VP, saisonnier au
+tier 2, repli si durée 0/négative/NaN/absente, priorité tier 1). `finance.test.js`
+— +5 cas (résolution d'en-tête colonne Q, parsing, absence, placeholder).
+`planFlotte.test.js` — 2 cas D-018/D-019 pré-existants corrigés (dates
+recalculées suite à l'abandon de `plannedexitdate`), fixture P5 ajustée pour
+conserver l'intention du test D-016 original, + 2 cas D-020 bout-en-bout.
+118 tests passent au total (rules 36 + finance 26 + planFlotte 56).
+
+---
+
+## 19. Onglet "Stats clients" — top clients par CA/agence ✅ 2026-07-19 (D-023)
+
+> 100 % frontend, aucun nouvel appel réseau. Détail complet des choix : D-023.
+
+- **Backend** : `api/report.js#mapRecord` expose un nouveau champ `caHT: r.netcharge`
+  (D-003) en plus de `facture` (TTC). Seul ajout backend, non-cassant.
+- **Frontend** (`wheelsys-reporting/index.html`) : nouvel onglet "📊 Stats clients"
+  entre "Tous les contrats" et "🎯 Cockpit flotte" dans `ALL_TABS`. Alimenté par
+  `renderStats(json.allRaw, json.impaye.items, from, to)`, appelé depuis
+  `loadData()` en même temps que les autres rendus — pas de lazy-load (contrairement
+  à Flotte), car aucune requête réseau supplémentaire n'est nécessaire.
+- **Agrégation** : `computeStatsAggregation()` groupe `allRaw` par agence
+  (`stationCode`) puis par client (`itemExemptKey`, identité = `clientEntityId`
+  sinon nom normalisé — même fonction que les exemptions cautions/départs).
+  Calcule par client : `caHT`, `caTTC`, `contrats`, `panierMoyen`, `pctAgence`
+  (part du CA agence), `impaye` (croisé depuis `json.impaye.items`, indépendant
+  de la période — 12 mois glissants), `objectif`/`progression` (localStorage).
+- **Objectifs éditables** : `localStorage['wheelsys_stats_objectifs']` = `{ [clientKey]: montantObjectif }`.
+  Jamais envoyé au backend, jamais mélangé à `caHT`/`caTTC` (D-023/D-019).
+- **UI** : tuiles KPI animées (count-up), panneau "Aide à la décision" (texte
+  généré depuis l'agrégation : concentration Pareto, croisement impayé, objectifs
+  sous 70 %), grille de cartes par agence (podium top 3 animé + classement #4-N),
+  tableau détaillé générique (`initSortableTable`, tri/filtre/recherche/export
+  Excel — même moteur que les 5 autres onglets).
+- **Lien client** : réutilise `clientLink(r)` (fonction pré-existante, jusqu'ici
+  jamais appelée) → `corporate.aspx?entityId=${r.clientEntityId}`. Fonctionne
+  pour les clients avec `clientEntityId` (corporate ou driver) ; sans entityId,
+  affiche le nom en texte simple (pas de lien cassé).
+
+### 19.1 D-024 — CA facturé (mtdtype=1), en-cours exclu, longue durée ⚠️ SUPERSEDÉ PAR D-025
+
+> Conservé pour l'historique. L'approche `mtdtype=1` décrite ici s'est avérée
+> **bugguée** (surestimation du CA sur les contrats multi-facturation) —
+> corrigée le jour même par D-025 (§19.2 ci-dessous). Ne pas réimplémenter
+> cette approche. Détail complet : DECISIONS.md D-024 et D-025.
+
+- Approche initiale : `json.factureRaw` = `rentalagreementfinancials` filtré
+  `mtdtype: '1'` (date de facturation), CA = somme de `caHT` sur les contrats
+  clôturés. **Bug** : pour un contrat multi-facturation, chaque ligne renvoie
+  le total cumulé du contrat entier, pas le montant de la facture tombant
+  dans la période — surestimation massive. Voir D-025 pour le remplacement.
+
+### 19.2 D-025 — Correction : `invoicesauditreport` (vrai grand livre facture) ✅ 2026-07-19
+
+> Détail complet des choix : DECISIONS.md D-025. Champs du rapport : KNOWLEDGE §4.1ter.
+
+- **`json.factureRaw` recalculé depuis `invoicesauditreport`** (plus
+  `rentalagreementfinancials`/`mtdtype=1`) — une ligne = une facture réelle,
+  montant et date propres à chaque facture. Mappé par `mapInvoiceRecord()`
+  (nouveau, distinct de `mapRecord()`) : `{ id, invoice, docType, isCreditNote,
+  contrat, client, clientEntityId, station, stationCode, invoiceDate, caHT,
+  caTTC, balance, plateno, void, cancelling }`. Lignes `void`/`cancelling`
+  éliminées côté backend ; filtre station appliqué côté backend (pas de
+  `edstations` confirmé sur ce rapport).
+- **Nouveau champ réponse backend `json.enCoursActuel`** — `rentalagreementfinancials`
+  `mtrtype=2`/`mtdtype=2` sur une plage large fixe (2015-01-01 → aujourd'hui+2j),
+  **indépendante du `dateRange` choisi** — capte les contrats encore actifs
+  démarrés avant la période sélectionnée. 6ᵉ appel réseau parallèle dans
+  `api/report.js`. Pas d'enrichissement client (délai paiement/caution), non
+  pertinent pour cette vue.
+- **`computeStatsAggregation(factureRaw, enCoursActuel, impayeItems)`** —
+  nouvelle signature à 3 sources (au lieu de 2 en D-024). Plus de split
+  Clôturé/En cours sur `factureRaw` (chaque ligne est déjà une vraie facture,
+  les avoirs `isCreditNote` ont un `caHT` déjà négatif, sommer suffit). Le
+  signal "longue durée en cours" (`STATS_LONGUE_DUREE_JOURS = 30`, inchangé)
+  vient exclusivement de `enCoursActuel`, croisé par client via `itemExemptKey`
+  — y compris pour les clients sans aucune facture sur la période
+  (`enCoursSansFacture`, remontés uniquement dans le panneau "Aide à la
+  décision", jamais dans le tableau classé puisqu'ils n'ont pas de CA à ranker).
+- **`renderStats()` nouvelle signature** : `renderStats(factureRaw, enCoursActuel,
+  impayeItems, from, to, opts)` — un paramètre de plus qu'en D-024.
+- **"Nombre de factures" = vrai comptage** (`c.factures`, lignes `!isCreditNote`
+  de `factureRaw`), plus le fallback "1 contrat = 1 facture" de D-024.
+  `c.avoirs` compte les `CRE-` séparément ; `c.contrats` = nombre de contrats
+  RNT- distincts facturés (`Set` sur `r.contrat`), exposé en sous-texte/export
+  mais pas comme colonne triable principale (le tri se fait sur `factures`).
+- **Regroupement mensuel** (période > 60 jours) : groupé par `invoiceDate`
+  (vraie date de facturation, désormais disponible), plus par `checkoutdate`.
 
 ---
 _Liés : [instructions.md](./instructions.md) · [ROADMAP.md](./ROADMAP.md)_

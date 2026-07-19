@@ -244,14 +244,22 @@ module.exports = async function handler(req, res) {
     {
       const cookie = wlsCookie;
 
-      // 4 appels parallèles.
+      // 6 appels parallèles.
       // ⚠️ mtrtype=1+2 ≠ mtrtype=3 : certains contrats intermédiaires n'apparaissent que dans mtrtype=3.
       // ⚠️ mtdtype=2 = date de départ (checkout) — filtre correct par période sélectionnée.
-      //    mtdtype=1 = date de création du contrat (trop large, contrats hors période).
       // ⚠️ checkindate est la date de retour PRÉVUE (toujours renseignée) — inutilisable pour le statut.
       //    Statut dérivé par intersection : si l'ID est dans activeIds → "En cours", sinon → "Clôturé".
+      // D-025 : le CA "facturé" de l'onglet Stats (D-023/D-024) utilisait `rentalagreementfinancials`
+      // en mtdtype=1 — BUG confirmé en live (2026-07-19) : pour un contrat multi-facturation (location
+      // longue durée à cycle périodique), la ligne remonte le total CUMULÉ du contrat entier, pas le
+      // montant de la seule facture tombant dans la période — surestimation massive. Remplacé par le
+      // rapport dédié `invoicesauditreport` (trouvé par Julien), confirmé en live comme un vrai grand
+      // livre 1 ligne = 1 facture (netamount/total propres à CHAQUE facture, invoicedateclean = vraie
+      // date d'émission, docinfo distingue facture normale / avoir "Adjustment Rental Credit Note").
       const [from, to] = dateRange.split('|');
-      const [rangeData, preAuthMap, impayeRaw, activeData] = await Promise.all([
+      const wideFrom = '2015-01-01';
+      const wideTo = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const [rangeData, preAuthMap, impayeRaw, activeData, factureData, enCoursActuelData] = await Promise.all([
         callReport(tenant, cookie, 'rentalagreementfinancials', buildFilters({
           dateRange, station, mtrtype: '3', mtdtype: '2', mtstationmode: '1',
         })),
@@ -261,6 +269,15 @@ module.exports = async function handler(req, res) {
         })),
         callReport(tenant, cookie, 'rentalagreementfinancials', buildFilters({
           dateRange, station, mtrtype: '2', mtdtype: '2', mtstationmode: '1', // actifs uniquement — pour dériver le statut
+        })),
+        callReport(tenant, cookie, 'invoicesauditreport', [
+          { FilterName: 'dddf#dt', ControlName: 'rptdddfdt', FilterType: 'ftDateRange', Required: true, Value: dateRange, Caption: 'Date' },
+        ]), // D-025 : vrai grand livre facture (1 ligne = 1 facture) — filtre station appliqué après réception (pas de edstations confirmé sur ce rapport)
+        // D-025 : contrats "En cours" à ce jour, INDÉPENDANT de la période choisie — capte les locations
+        // longue durée démarrées bien avant la fenêtre sélectionnée mais toujours actives pendant celle-ci
+        // (ex. LLD en cours depuis 8 mois). Plage large fixe 2015→aujourd'hui+2j, mtrtype=2 = actifs uniquement.
+        callReport(tenant, cookie, 'rentalagreementfinancials', buildFilters({
+          dateRange: `${wideFrom}|${wideTo}`, station, mtrtype: '2', mtdtype: '2', mtstationmode: '1',
         })),
       ]);
 
@@ -294,7 +311,8 @@ module.exports = async function handler(req, res) {
           id: r.id, contrat: r.displaydocno || r.rano,
           client: r.customer, clientEntityId: r.corporatecodeid || r.drivercodeid,
           checkoutdate: r.checkoutdate, checkindate: r.checkindate,
-          facture: r.custcharge, paye: r.custpayments, solde: r.custbalance,
+          facture: r.custcharge, caHT: r.netcharge || 0, paye: r.custpayments, solde: r.custbalance,
+          days: r.days || 0, accrueddays: r.accrueddays || 0, // durée contrat / jours courus (D-024 — détection longue durée en cours)
           cash: r.cashpaid, carte: r.cardpaid, cheque: r.chequepaid, virement: r.bankpaid,
           excess: r.excess,          // franchise assurance
           preauth,                   // montant pré-autorisation CB (caution réelle)
@@ -333,6 +351,39 @@ module.exports = async function handler(req, res) {
 
       // ── Toutes les données brutes (pour debug / données manquantes) ──
       const allRaw = rangeData.map(mapRecord);
+
+      // ── D-025 : vrai grand livre facture (1 ligne = 1 facture), source du CA "facturé" onglet Stats ──
+      function mapInvoiceRecord(r) {
+        const isCreditNote = String(r.invoice || '').trim().startsWith('CRE-')
+          || /credit/i.test(r.docinfo || '');
+        return {
+          id: r.id, invoice: r.invoice, docType: r.docinfo, isCreditNote,
+          contrat: r.displaydocno,
+          client: r.partner_name, clientEntityId: r.partner_codeid || null,
+          station: r.stationname, stationCode: r.station,
+          invoiceDate: r.invoicedateclean,
+          caHT: r.netamount || 0, caTTC: r.total || 0, balance: r.balance || 0,
+          plateno: r.plateno,
+          void: !!r.void, cancelling: !!r.cancelling,
+        };
+      }
+      const factureRaw = factureData
+        .filter(r => !station || r.station === station) // edstations non confirmé sur ce rapport → filtre appliqué ici
+        .filter(r => !r.void && !r.cancelling)           // jamais compter une facture annulée/void comme du CA
+        .map(mapInvoiceRecord);
+
+      // ── D-025 : contrats "En cours" à ce jour, indépendant de la période (locations longue durée
+      // démarrées avant la fenêtre choisie mais toujours actives) — pas d'enrichissement client (délai
+      // paiement/caution), non pertinent pour cette vue de suivi ──
+      const enCoursActuel = enCoursActuelData.map(r => ({
+        id: r.id, contrat: r.displaydocno || r.rano,
+        client: r.customer, clientEntityId: r.corporatecodeid || r.drivercodeid,
+        checkoutdate: r.checkoutdate, checkindate: r.checkindate,
+        caHT: r.netcharge || 0, facture: r.custcharge || 0,
+        days: r.days || 0, accrueddays: r.accrueddays || 0,
+        station: r.stationfromname, stationCode: r.stationfromcode,
+        plateno: r.plateno,
+      }));
 
       // ── Scores de conformité par agence (D-002 : 50% cautions + 50% paiements départ) ──
       const agenceMap = {};
@@ -375,6 +426,8 @@ module.exports = async function handler(req, res) {
         caution:     { items: caution, total: rangeData.length },
         impaye:      { items: impaye,  total: impayeRaw.length, from, to },
         allRaw,
+        factureRaw,
+        enCoursActuel,
         agenceStats,
         stations,
         user: session.username,
