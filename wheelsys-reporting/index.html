@@ -299,10 +299,38 @@
       background: #fff; border: 1px solid var(--border); border-left: 4px solid var(--navy);
       border-radius: 8px; padding: 14px 18px; margin-bottom: 20px;
     }
-    .insight-panel h3 { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+    .insight-panel h3 { font-size: 13px; font-weight: 700; color: var(--navy); margin: 0; }
     .insight-item { font-size: 12.5px; line-height: 1.5; padding: 6px 0; }
     .insight-item + .insight-item { border-top: 1px dashed var(--border); }
     .insight-empty { color: var(--muted); font-size: 12.5px; }
+
+    .insight-panel-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .insight-groupby-toggle { display: flex; gap: 4px; }
+    .pill-toggle {
+      font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px;
+      border: 1px solid var(--border); background: #fff; color: var(--muted); cursor: pointer;
+    }
+    .pill-toggle.active { background: var(--navy); border-color: var(--navy); color: #fff; }
+    .pill-toggle:hover:not(.active) { border-color: var(--navy); color: var(--navy); }
+
+    .insight-group { border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; overflow: hidden; }
+    .insight-group:last-child { margin-bottom: 0; }
+    .insight-group summary {
+      list-style: none; cursor: pointer; padding: 8px 12px; display: flex; align-items: center; gap: 8px;
+      font-size: 12.5px; font-weight: 700; color: var(--navy); background: #fafbfc; user-select: none;
+    }
+    .insight-group summary::-webkit-details-marker { display: none; }
+    .insight-group summary::before { content: '▸'; font-size: 10px; color: var(--muted); transition: transform .15s ease; }
+    .insight-group[open] summary::before { transform: rotate(90deg); }
+    .insight-group-label { flex: 1; }
+    .insight-group-count {
+      font-size: 11px; font-weight: 700; background: var(--border); color: var(--navy);
+      border-radius: 10px; padding: 1px 8px; min-width: 18px; text-align: center;
+    }
+    .insight-group.insight-sev-high summary { background: #fdeceb; }
+    .insight-group.insight-sev-high .insight-group-count { background: var(--red); color: #fff; }
+    .insight-group.insight-sev-medium .insight-group-count { background: #f57c00; color: #fff; }
+    .insight-group-body { padding: 4px 14px 8px; }
 
     /* ── Cartes agence + podium ── */
     /* minmax(280px, 420px) plutôt que 1fr : avec 1 ou 2 agences seulement
@@ -1450,10 +1478,22 @@ function TENANT() {
   return wlsTenant || 'lutam';
 }
 
+// Lien désactivé (2026-07-19) : `r.clientEntityId` (alimenté par `partner_codeid`
+// côté invoicesauditreport, `corporatecodeid`/`drivercodeid` côté
+// rentalagreementfinancials) est en réalité le NUMÉRO DE COMPTE affiché
+// ("Corporate Customer - 1457"), pas le vrai entityId interne wheelsys utilisé
+// dans manage/master/*.aspx?entityId= (confirmé en direct : BG GLOBAL réf. 1457
+// / vrai entityId 69511 ; Philippe MALHEIROS réf. 1211 / vrai entityId 48836).
+// En plus, corporate.aspx ne convient qu'aux clients "Corporate" — un client
+// particulier ("Driver") a sa fiche sur driver.aspx, jamais corporate.aspx.
+// Un lien construit avec ces infos pointe donc vers "Record not found" ou,
+// pire, vers la fiche d'un AUTRE client par coïncidence d'ID. Tant que la
+// résolution du vrai entityId n'est pas rebranchée (piste identifiée :
+// POST /api/entities/globalsearch, retourne {Id, EntryType, DisplayValue} —
+// contrat d'appel exact pas encore confirmé), on affiche le nom en texte
+// simple plutôt qu'un lien qui trompe l'utilisateur. Voir DECISIONS.md D-026.
 function clientLink(r) {
-  const name = r.client || '—';
-  if (!r.clientEntityId) return name;
-  return `<a class="link" href="https://${TENANT()}.wheelsys.io/ui/manage/master/corporate.aspx?entityId=${r.clientEntityId}" target="_blank">${escHtml(name)}</a>`;
+  return escHtml(r.client || '—');
 }
 
 function paymentDelayBadge(r) {
@@ -1842,14 +1882,26 @@ function statsTilesHtml(agg, from, to) {
 // ── Aide à la décision : insights générés depuis l'agrégation, pas d'historique ──
 // Scanne TOUS les clients de chaque agence (pas seulement le Top N affiché) —
 // un risque (impayé, contrat longue durée en cours) ne doit jamais être caché
-// par le sélecteur d'affichage.
-function statsInsightsHtml(agg) {
+// par le sélecteur d'affichage. Chaque insight est un objet structuré {theme,
+// severity, agence, html} — regroupé en sections repliables (par thématique ou
+// par agence, au choix) plutôt qu'empilé à plat (jusqu'à 50+ lignes en réel).
+const STATS_INSIGHT_THEMES = {
+  concentration: { label: 'Concentration client', icon: '⚠️' },
+  impaye:        { label: 'Impayés à relancer', icon: '💰' },
+  longueDuree:   { label: 'Contrats longue durée en cours', icon: '🕐' },
+  objectif:      { label: 'Sous objectif', icon: '🎯' },
+};
+
+function statsBuildInsights(agg) {
   const insights = [];
-  const tousClients = agg.agences.flatMap(a => a.clients.map(c => ({ ...c, agenceNom: a.nom })));
+  const tousClients = agg.agences.flatMap(a => a.clients.map(c => ({ ...c, agenceNom: a.nom, agenceCode: a.code })));
 
   agg.agences.forEach(a => {
     if (a.nbClients >= 3 && a.concentrationTop3 >= STATS_CONCENTRATION_ALERT) {
-      insights.push(`⚠️ <strong>${escHtml(a.nom)}</strong> : les 3 premiers clients représentent <strong>${Math.round(a.concentrationTop3)}%</strong> du CA facturé de l'agence — risque de dépendance commerciale.`);
+      insights.push({
+        theme: 'concentration', severity: 'high', agence: a.nom, agenceCode: a.code,
+        html: `⚠️ <strong>${escHtml(a.nom)}</strong> : les 3 premiers clients représentent <strong>${Math.round(a.concentrationTop3)}%</strong> du CA facturé de l'agence — risque de dépendance commerciale.`,
+      });
     }
   });
 
@@ -1858,7 +1910,10 @@ function statsInsightsHtml(agg) {
     .filter(c => c.longueDureeCount > 0)
     .sort((x, y) => y.longueDureeCaHT - x.longueDureeCaHT)
     .forEach(c => {
-      insights.push(`🕐 <strong>${escHtml(c.client)}</strong> (${escHtml(c.agenceNom)}) — CA contrat longue durée en cours = <strong>${fmtEur(c.longueDureeCaHT)}</strong> (${c.longueDureeCount} contrat${c.longueDureeCount > 1 ? 's' : ''}, ${c.longueDureeJoursMax} j).`);
+      insights.push({
+        theme: 'longueDuree', severity: 'medium', agence: c.agenceNom, agenceCode: c.agenceCode,
+        html: `🕐 <strong>${clientLink(c)}</strong> (${escHtml(c.agenceNom)}) — CA contrat longue durée en cours = <strong>${fmtEur(c.longueDureeCaHT)}</strong> (${c.longueDureeCount} contrat${c.longueDureeCount > 1 ? 's' : ''}, ${c.longueDureeJoursMax} j).`,
+      });
     });
 
   // Longue durée en cours — clients SANS aucune facture sur la période choisie
@@ -1867,29 +1922,105 @@ function statsInsightsHtml(agg) {
     .slice()
     .sort((x, y) => y.caHT - x.caHT)
     .forEach(e => {
-      insights.push(`🕐 <strong>${escHtml(e.client)}</strong> (${escHtml(e.station || '—')}) — CA contrat longue durée en cours = <strong>${fmtEur(e.caHT)}</strong> (${e.count} contrat${e.count > 1 ? 's' : ''}, ${e.joursMax} j) — aucune facture émise sur la période choisie.`);
+      insights.push({
+        theme: 'longueDuree', severity: 'medium', agence: e.station || '—', agenceCode: e.stationCode || '',
+        html: `🕐 <strong>${clientLink(e)}</strong> (${escHtml(e.station || '—')}) — CA contrat longue durée en cours = <strong>${fmtEur(e.caHT)}</strong> (${e.count} contrat${e.count > 1 ? 's' : ''}, ${e.joursMax} j) — aucune facture émise sur la période choisie.`,
+      });
     });
 
-  const clientsImpayes = tousClients
+  tousClients
     .filter(c => c.impaye > 0.01)
     .sort((x, y) => y.impaye - x.impaye)
-    .slice(0, 5);
-  clientsImpayes.forEach(c => {
-    insights.push(`💰 <strong>${escHtml(c.client)}</strong> (${escHtml(c.agenceNom)}) génère ${fmtEur(c.caHT)} de CA HT facturé mais a un solde impayé de <strong>${fmtEur(c.impaye)}</strong> (12 mois glissants) — à relancer en priorité.`);
-  });
+    .slice(0, 5)
+    .forEach(c => {
+      insights.push({
+        theme: 'impaye', severity: 'high', agence: c.agenceNom, agenceCode: c.agenceCode,
+        html: `💰 <strong>${clientLink(c)}</strong> (${escHtml(c.agenceNom)}) génère ${fmtEur(c.caHT)} de CA HT facturé mais a un solde impayé de <strong>${fmtEur(c.impaye)}</strong> (12 mois glissants) — à relancer en priorité.`,
+      });
+    });
 
-  const sousObjectif = tousClients
+  tousClients
     .filter(c => c.objectif && c.progression < 70)
     .sort((x, y) => x.progression - y.progression)
-    .slice(0, 5);
-  sousObjectif.forEach(c => {
-    insights.push(`🎯 <strong>${escHtml(c.client)}</strong> (${escHtml(c.agenceNom)}) est à <strong>${Math.round(c.progression)}%</strong> de son objectif (${fmtEur(c.caHT)} / ${fmtEur(c.objectif)}).`);
-  });
+    .slice(0, 5)
+    .forEach(c => {
+      insights.push({
+        theme: 'objectif', severity: 'low', agence: c.agenceNom, agenceCode: c.agenceCode,
+        html: `🎯 <strong>${clientLink(c)}</strong> (${escHtml(c.agenceNom)}) est à <strong>${Math.round(c.progression)}%</strong> de son objectif (${fmtEur(c.caHT)} / ${fmtEur(c.objectif)}).`,
+      });
+    });
 
+  return insights;
+}
+
+let _statsInsightGroupBy = 'theme'; // 'theme' | 'agence' — bascule proposée par Julien
+let _statsInsightsOpen = new Set(); // clés de groupes explicitement dépliés/repliés par l'utilisateur, préservé entre les re-render
+
+function statsInsightsHtml(agg) {
+  const insights = statsBuildInsights(agg);
   if (insights.length === 0) {
     return `<div class="insight-panel"><h3>🎯 Aide à la décision</h3><div class="insight-empty">Aucune alerte détectée sur la sélection courante — répartition équilibrée, pas d'impayé croisé, pas de contrat longue durée en cours, objectifs atteints.</div></div>`;
   }
-  return `<div class="insight-panel"><h3>🎯 Aide à la décision (${insights.length})</h3>${insights.map(t => `<div class="insight-item">${t}</div>`).join('')}</div>`;
+
+  const byAgence = _statsInsightGroupBy === 'agence';
+  const groups = new Map();
+  insights.forEach(i => {
+    const key = byAgence ? (i.agenceCode || i.agence) : i.theme;
+    if (!groups.has(key)) groups.set(key, {
+      key,
+      label: byAgence ? i.agence : (STATS_INSIGHT_THEMES[i.theme]?.label || i.theme),
+      icon: byAgence ? '🏢' : (STATS_INSIGHT_THEMES[i.theme]?.icon || '•'),
+      items: [], maxSeverity: 'low',
+    });
+    const g = groups.get(key);
+    g.items.push(i);
+    if (i.severity === 'high') g.maxSeverity = 'high';
+    else if (i.severity === 'medium' && g.maxSeverity !== 'high') g.maxSeverity = 'medium';
+  });
+
+  const sevOrder = { high: 0, medium: 1, low: 2 };
+  const groupList = [...groups.values()].sort((a, b) =>
+    sevOrder[a.maxSeverity] - sevOrder[b.maxSeverity] || b.items.length - a.items.length);
+
+  // Par défaut (avant toute interaction utilisateur) : seuls les groupes contenant
+  // au moins une alerte "high" (concentration, impayés) sont dépliés — le reste
+  // reste replié pour éviter la pile de 50+ lignes. Une fois que l'utilisateur a
+  // manuellement déplié/replié un groupe, son choix est respecté (_statsInsightsOpen).
+  const groupsHtml = groupList.map(g => {
+    const isOpen = _statsInsightsOpen.has(g.key) || (!_statsInsightsOpen.size && g.maxSeverity === 'high');
+    const sevClass = g.maxSeverity === 'high' ? 'insight-sev-high' : g.maxSeverity === 'medium' ? 'insight-sev-medium' : 'insight-sev-low';
+    return `<details class="insight-group ${sevClass}" ${isOpen ? 'open' : ''} ontoggle="statsTrackInsightToggle('${g.key.replace(/'/g, "\\'")}', this)">
+      <summary>
+        <span>${g.icon}</span>
+        <span class="insight-group-label">${escHtml(g.label)}</span>
+        <span class="insight-group-count">${g.items.length}</span>
+      </summary>
+      <div class="insight-group-body">${g.items.map(i => `<div class="insight-item">${i.html}</div>`).join('')}</div>
+    </details>`;
+  }).join('');
+
+  return `<div class="insight-panel">
+    <div class="insight-panel-head">
+      <h3>🎯 Aide à la décision (${insights.length})</h3>
+      <div class="insight-groupby-toggle">
+        <button class="pill-toggle ${!byAgence ? 'active' : ''}" onclick="statsSetInsightGroupBy('theme')">Par thématique</button>
+        <button class="pill-toggle ${byAgence ? 'active' : ''}" onclick="statsSetInsightGroupBy('agence')">Par agence</button>
+      </div>
+    </div>
+    ${groupsHtml}
+  </div>`;
+}
+
+function statsTrackInsightToggle(key, detailsEl) {
+  if (detailsEl.open) _statsInsightsOpen.add(key);
+  else _statsInsightsOpen.delete(key);
+}
+
+function statsSetInsightGroupBy(mode) {
+  if (_statsInsightGroupBy === mode) return;
+  _statsInsightGroupBy = mode;
+  _statsInsightsOpen = new Set(); // les clés de groupe changent de sens (thème ↔ agence) — repartir de l'état par défaut
+  if (_statsData) renderStats(_statsData.factureRaw, _statsData.enCoursActuel, _statsData.impayeItems, _statsData.from, _statsData.to, { skipAnim: true });
 }
 
 // D-025 : point d'attention restant, toujours visible — jamais présenté comme

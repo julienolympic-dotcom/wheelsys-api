@@ -871,6 +871,89 @@
   avec accès live, un éventuel rapport encore plus direct si besoin — non
   bloquant, `invoicesauditreport` est déjà jugé suffisant (choix de Julien).
 
+## D-026 — Aide à la décision repliable/regroupable + bug du lien client identifié (bloque le futur module Credit rating)
+
+- **Date** : 2026-07-19
+- **Demande Julien** : la section "Aide à la décision" (Stats clients)
+  affichait jusqu'à 53 lignes empilées les unes sous les autres — demande
+  d'un système de synthèse, un menu qui se déplie/replie par thématique ou
+  par agence. Julien a aussi signalé un lien client cassé ("le lien vers le
+  compte client n'est pas bon, cela créé un compte corporate"), avec un
+  exemple de lien correct fourni (`corporate.aspx?entityId=71401`).
+- **Synthèse repliable** : les insights sont désormais des objets structurés
+  `{theme, severity, agence, html}` (`statsBuildInsights`) plutôt que des
+  chaînes à plat, regroupés en blocs `<details>` repliables (`statsInsightsHtml`)
+  — par thématique par défaut (Concentration client / Impayés à relancer /
+  Contrats longue durée en cours / Sous objectif), avec bascule "Par
+  thématique / Par agence" (`statsSetInsightGroupBy`). Seuls les groupes
+  contenant au moins une alerte "high" (concentration, impayés) sont dépliés
+  par défaut ; le choix manuel de l'utilisateur est respecté entre deux
+  re-render (`_statsInsightsOpen`).
+- **Bug du lien client — root-cause confirmé en direct** (session Chrome sur
+  le vrai compte wheelsys, consultation seule, aucune modification) :
+  `r.clientEntityId` (alimenté par `partner_codeid` côté `invoicesauditreport`
+  et `corporatecodeid`/`drivercodeid` côté `rentalagreementfinancials`) est en
+  réalité le **numéro de compte affiché** dans l'en-tête wheelsys ("Corporate
+  Customer - 1457", "Individual Renter - 1211"), **pas** le véritable
+  `entityId` interne utilisé par les URLs `manage/master/*.aspx?entityId=`.
+  Deux numérotations totalement indépendantes. Vérifié sur deux cas réels :
+  - BG GLOBAL : référence compte **1457** (= ce que notre app utilisait comme
+    "entityId") vs vrai `entityId` **69511** (type *Corporate* →
+    `corporate.aspx`).
+  - Philippe MALHEIROS : référence compte **1211** vs vrai `entityId`
+    **48836** (type *Individual Renter* → `driver.aspx`, jamais
+    `corporate.aspx`).
+  Un lien construit avec la référence compte pointe donc vers "Record not
+  found" (nouvel enregistrement vide) ou, par pure coïncidence numérique,
+  vers la fiche d'un **client totalement différent** — pire que pas de lien
+  du tout.
+- **Découverte en bonus, non demandée mais importante** : `getClientPaymentInfo()`
+  (`api/report.js:184-213`, utilisée pour le badge "délai de paiement" affiché
+  dans toute l'app, pas seulement Stats) appelle `corporate.aspx/GetEntityData`
+  avec ce même `corporatecodeid`/`drivercodeid` erroné. En observant le vrai
+  trafic réseau émis par wheelsys lui-même en chargeant une fiche client, le
+  point d'entrée réel est `partner.aspx/getPartnerInfo` — `corporate.aspx/GetEntityData`
+  ne semble plus exister tel quel côté serveur actuel (réponse HTML de la SPA,
+  pas de JSON). Cette fonction est donc très probablement **silencieusement
+  cassée depuis un moment** (retourne `null`, badge affiché "—"), indépendamment
+  du bug d'ID — à vérifier/refaire avant de s'appuyer dessus pour quoi que ce
+  soit.
+- **Piste de résolution identifiée** (non branchée) : la barre de recherche
+  globale wheelsys appelle `POST /api/entities/globalsearch` et renvoie des
+  entrées `{Id, Domain, DisplayValue, EntryType}` où `Id` est le **vrai**
+  `entityId` et `EntryType` (`"Driver"` / `"Corporate"` confirmés en direct)
+  indique la page cible. Testé avec succès en cliquant la suggestion dans
+  l'UI (résout correctement BG GLOBAL → 69511/Corporate et MALHEIROS →
+  48836/Driver). Le contrat d'appel exact (nom + forme du champ de recherche
+  dans le corps POST) **n'a pas pu être confirmé** : les tentatives directes
+  (`searchTerm`, `term`, `query`, `q`, `text`, chaîne brute) renvoient toutes
+  une erreur 500 générique, et l'outil de capture réseau bloque volontairement
+  la lecture du corps de la requête réelle envoyée par le navigateur (donnée
+  jugée sensible/possible jeton de session) — protection légitime, pas
+  contournée.
+- **Correctif appliqué (stopgap, déployé)** : `clientLink()` (`index.html`)
+  n'essaie plus de construire un lien vers wheelsys — affiche le nom client en
+  texte simple (`escHtml`) le temps que la résolution `entityId` réelle soit
+  rebranchée. Mieux un nom sans lien qu'un lien qui envoie vers le mauvais
+  client ou une page vide.
+- **Impact direct sur la demande "module Credit rating"** (voir demande du
+  jour, plan pas encore écrit) : ce module doit (a) identifier le bon client
+  dans wheelsys pour lire/écrire son délai de paiement, (b) lire l'état actuel
+  via un vrai endpoint (`getPartnerInfo` à confirmer, pas `GetEntityData`),
+  (c) écrire via un endpoint pas encore identifié du tout. Les points (a) et
+  (b) sont directement bloqués par ce qui vient d'être découvert : bâtir une
+  écriture sur un `entityId` faux risquerait de modifier le compte du
+  **mauvais client** en production — donc **aucune écriture ne doit être
+  tentée avant** une session de découverte live dédiée (même méthode que
+  D-025 pour `invoicesauditreport`) qui confirme (1) le contrat d'appel de
+  `/api/entities/globalsearch`, (2) le contrat d'appel réel de
+  `getPartnerInfo` (ou équivalent) pour lire le délai de paiement actuel, (3)
+  l'existence et le contrat d'un endpoint d'écriture.
+- **Écarté** : garder le lien tel quel en espérant que l'ID soit bon "la
+  plupart du temps" — écarté, vérifié faux sur 2/2 cas testés et le risque
+  (envoyer Julien vers la fiche d'un autre client) est disproportionné par
+  rapport au confort d'un lien cliquable.
+
 ---
 _Liés : [instructions.md](./instructions.md) · [KNOWLEDGE.md](./KNOWLEDGE.md) ·
 [ROADMAP.md](./ROADMAP.md)_

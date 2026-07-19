@@ -84,9 +84,29 @@ custbalance         solde client (>0 = impayé)
 cashpaid, cardpaid, chequepaid, bankpaid  détail modes de paiement
 excess              franchise assurance (≠ caution/pré-auth !)
 stationfromcode/name agence de départ
-corporatecodeid     entityId du client corporate
-drivercodeid        entityId du conducteur
+corporatecodeid     ⚠️ PAS un entityId (voir correction D-026 ci-dessous)
+drivercodeid        ⚠️ PAS un entityId (voir correction D-026 ci-dessous)
 ```
+
+⚠️ **CORRECTION D-026 (2026-07-19)** : `corporatecodeid`/`drivercodeid` (et
+l'équivalent `partner_codeid` sur `invoicesauditreport`, §4.1ter) ne sont
+**PAS** le véritable `entityId` interne wheelsys utilisé dans les URLs
+`manage/master/*.aspx?entityId=`. C'est le **numéro de compte affiché** dans
+l'en-tête wheelsys ("Corporate Customer - **1457**", "Individual Renter -
+**1211**") — une numérotation totalement différente et indépendante de
+l'`entityId` réel (`corporate.aspx?entityId=`**69511**` / `driver.aspx?entityId=`**48836**`
+pour ces deux mêmes clients, vérifié en direct). Construire un lien
+`corporate.aspx?entityId=<corporatecodeid>` pointe donc vers "Record not
+found" ou, par coïncidence numérique, vers la fiche d'un **autre client**.
+Piste de résolution identifiée mais pas encore branchée : `POST
+/api/entities/globalsearch` (utilisé par la barre de recherche globale
+wheelsys) renvoie `{Id, Domain, DisplayValue, EntryType}` où `Id` est le vrai
+`entityId` et `EntryType` (`"Driver"` / `"Corporate"` confirmés) indique
+`driver.aspx` vs `corporate.aspx`. Contrat d'appel exact (nom du champ dans le
+body POST) pas encore confirmé — 500 générique sur les essais `searchTerm`/
+`term`/`query`/`q`/`text`. Voir DECISIONS.md D-026 pour le détail complet.
+Conséquence pratique : `clientLink()` dans `index.html` n'affiche plus de
+lien cliquable (juste le nom en texte) tant que ça n'est pas corrigé.
 
 ⚠️ **PIÈGE MAJEUR** : `excess` = franchise assurance, PAS la caution réelle.
 La caution réelle = pré-autorisation CB → voir rapport `preauthorizations`.
@@ -180,9 +200,11 @@ docinfo             type de document — valeurs observées : "Rental Invoice",
                     (= avoir, netamount déjà négatif)
 displaydocno        numéro de contrat ("RNT-XXXXX") — clé de jointure vers
                     rentalagreementfinancials
-partner_name        nom client · partner_codeid  entityId client (même
-                    convention que corporatecodeid ailleurs — nullité pour un
-                    client particulier non vérifiée, à confirmer)
+partner_name        nom client · partner_codeid  ⚠️ PAS l'entityId client,
+                    voir correction D-026 §4.1 — c'est le numéro de compte
+                    affiché ("Corporate Customer - 1457"), pas
+                    `corporate.aspx?entityId=`. Confirmé non-nul aussi pour un
+                    client particulier (ex. 1211 pour un "Individual Renter").
 invoicedateclean    ✅ vraie date d'émission de CETTE facture (pas du contrat)
 netamount           ✅ montant HT de CETTE facture (pas le cumulé du contrat)
 tax1amount/tax2amount, total  TVA / montant TTC de cette facture
