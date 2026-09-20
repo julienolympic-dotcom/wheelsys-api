@@ -2,7 +2,10 @@
   "name": "wheelsys-reporting",
   "version": "1.0.0",
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
+  },
+  "scripts": {
+    "test": "node --test"
   },
   "dependencies": {
     "tesseract.js": "^7.0.0"
