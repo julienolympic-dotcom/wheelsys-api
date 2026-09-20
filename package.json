@@ -1,0 +1,26 @@
+{
+  "name": "wheelsys-api",
+  "version": "0.1.0",
+  "description": "Librairie cliente wheelsys.io : login compte de service (ASP.NET), rapports GenerateReportData, enrichissement d'un dossier par plaque d'immatriculation.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "private": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/julienolympic-dotcom/wheelsys-api.git"
+  }
+}
