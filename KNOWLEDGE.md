@@ -45,6 +45,7 @@
 | 5 | Dialog pré-auth (édition) | POST | `/ui/manage/master/payment.aspx/GetPaymentDialogInitData` | cacheKey, editval, rntpreauth, ptype=5 | Dialog init |
 | 6 | Rapport CA par agence (HT/TTC) | POST | idem | `browser:"revenueperstationreport"`, filters | Voir §4.3 |
 | 7 | Rapport utilisation flotte (rotation) | POST | idem | `browser:"fleetutilizationreport"`, filters | Voir §4.4 |
+| 8 | Recherche contrats par plaque (Rentals List) | POST | `/ui/manage/views/mainviewex.aspx/GetData` | `viewName:"rentalview"`, filtre `Plateno` (recherche simple ou avancée) | Voir §4.5 — client + téléphone par contrat |
 
 ### Format appel GenerateReportData
 
@@ -108,7 +109,12 @@ confirmé en direct par Julien (capture DevTools sur sa session). Implémenté
 dans `api/resolve-client.js` (nouvel endpoint dédié), branché dans
 `clientLink()`/`openClientInWheelsys()` (`index.html`) : clic sur un nom
 client dans Stats → résout l'entityId → ouvre la vraie fiche wheelsys dans un
-nouvel onglet. Lecture aussi confirmée : `POST partner.aspx/getPartnerInfo`
+nouvel onglet. ⚠️ **D-028** : la recherche par nom seul échoue pour certains
+clients (l'index de recherche wheelsys ne matche pas toujours le nom tel
+qu'affiché dans nos rapports) — `resolve-client.js` essaie donc d'abord le
+**numéro de compte** (`clientEntityId`, wildcard `%<numéro>%`, sous-texte du
+label indexé — vu en direct : "Customer - 2640" trouve le bon compte), puis
+replie sur le nom. Lecture aussi confirmée : `POST partner.aspx/getPartnerInfo`
 avec `{tenantId:387, partnerId:"<entityId>"}` → 200. Écriture (champ "Credit
 rating" = `corporateCreditRating_combo`, confirmé) volontairement **non
 automatisée** : c'est un postback ASP.NET à ~100 champs, jugé trop fragile —
@@ -286,6 +292,74 @@ servdays                         jours en service/atelier
 
 **Taux de rotation par catégorie/agence** = agréger `rentals` et `utilperc`
 (moyenne pondérée par `avdays`) groupés par `cargroup` × `station`.
+
+### 4.5 Recherche contrats par plaque — `mainviewex.aspx/GetData` (Rentals List) ✅ VALIDÉ 2026-09-20
+
+Endpoint de l'écran "Rentals List" (menu principal), **différent** des rapports
+`GenerateReportData` (§3-4) : pas de `browser`, pas de pagination via rapport —
+c'est la grille opérationnelle qui liste **tout l'historique des contrats
+d'un véhicule** (passés + à venir), pas de filtre date obligatoire.
+
+**Recherche simple** (barre "Search under" → "Vehicle") :
+```json
+{
+  "searchField": "Plateno",
+  "searchValue": "AB-123-CD",
+  "viewName": "rentalview",
+  "stations": "N'NCE', N'SLV', N'GJ', N'GR'",
+  "status": "",
+  "mongoSupport": "false",
+  "dataSkip": "0",
+  "dataSize": "50",
+  "searchUserId": "1",
+  "sortModel": "[]",
+  "dateStart": "",
+  "dateEnd": ""
+}
+```
+Fonctionne aussi avec `searchField:"DisplayDocNo"` (recherche par n° de contrat).
+
+**Recherche avancée** (icône loupe+, plusieurs critères) : payload avec
+`filters` (tableau JSON stringifié d'objets `{FilterName, ControlName,
+FilterType:"beText_textFilter", Value, Caption, condition:4, ...}`) au lieu de
+`searchField`/`searchValue` — même structure que les filtres wheelsys ailleurs.
+
+⚠️ **Format plaque requis : avec tirets** (`"AB-123-CD"`), la recherche sans
+tirets renvoie 0 résultat.
+
+Réponse : `{ d: { data: "[...]" } }` — tableau JSON stringifié, **un
+enregistrement par contrat** (pas par véhicule). Champs clés :
+```
+Id                  entityId contrat (→ rental.aspx?entityId=)
+SStr                statut court — valeurs observées "IN" (contrats passés
+                    soldés) et "PRE" (dernier contrat, déjà terminé dans les
+                    faits — KilomTo/FuelTo renseignés, Balance=0 — sens exact
+                    de "PRE" non confirmé, ⚠️ hypothèse : à ne pas lire comme
+                    "en cours" sans vérifier DateTo vs aujourd'hui)
+DisplayDocNo        n° contrat "RNT-XXXXX"
+Plateno             plaque (confirmé présent, contrairement à
+                    rentalagreementfinancials §4.1)
+DateFrom, DateTo    dates check-out / check-in prévues (ISO)
+Driver_Name         nom complet client particulier
+DriverFirstName/DriverLastName  nom client décomposé
+DriverPhone, DriverPhone2       ✅ téléphone(s) client — répond au besoin
+                    "plaque → client + téléphone du dernier contrat"
+DriverEmail         email client
+Corporate_Name      nom client corporate (vide si particulier — utiliser
+                    Driver_Name en fallback)
+StationFrom/StationTo (+Name)  agence départ/retour
+ChargeTotal, Payments, Balance financier du contrat
+Driver_Id, DriverCodeID         ⚠️ probable même piège que D-026 (§4.1) —
+                    DriverCodeID a toutes les chances d'être le n° de compte
+                    affiché, PAS l'entityId réel driver.aspx?entityId= — à
+                    vérifier avant d'en faire un lien direct
+```
+
+**Pour "dernier contrat en cours" d'une plaque** : trier les résultats par
+`DateFrom` décroissant, prendre le premier ; si aucun n'a `DateTo` ≥
+aujourd'hui, le "dernier" est en réalité le plus récent contrat **clos**, pas
+un contrat actif — à signaler explicitement plutôt que présenter comme "en
+cours".
 
 ---
 

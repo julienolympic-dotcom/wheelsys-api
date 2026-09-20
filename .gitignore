@@ -7,6 +7,10 @@ node_modules/
 .env.*.local
 # (.env.example reste suivi : non couvert par les motifs ci-dessus)
 
+# Permissions/allowlist locales Claude Code — peuvent contenir des commandes
+# avec cookies/secrets réels (ex. curl de capture API) : jamais versionné.
+.claude/settings.local.json
+
 # ─── Logs ─────────────────────────────────────────────────────
 *.log
 npm-debug.log*

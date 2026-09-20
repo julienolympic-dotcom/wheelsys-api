@@ -14,6 +14,19 @@
 // depuis l'onglet Stats clients — approche assistée (D-026/module Credit
 // rating) : on ouvre la bonne fiche, l'utilisateur modifie et clique Save
 // lui-même dans wheelsys. Aucune écriture depuis ce backend.
+//
+// D-028 : la recherche par nom seul échoue pour certains clients corporate
+// (ex. "CLIBAT AMENAGEMENT" → 0 résultat en prod) alors que la même API
+// trouve bien les individus par nom. Hypothèse : l'index de recherche
+// wheelsys ne matche pas forcément le nom affiché en report (espaces/accents
+// différents de la fiche réelle, cf. `"BRC  MENUISERIE"` avec double espace
+// vu en direct). Le numéro de compte (`clientEntityId` — D-026/D-027, c'est
+// le numéro affiché "Corporate Customer - 1457", pas l'entityId) est un
+// identifiant numérique qu'on possède déjà et qui est un sous-texte du label
+// indexé par wheelsys (vu en direct : recherche "Customer - 2640" trouve le
+// bon compte) — donc chercher d'abord sur ce numéro (wildcard `%1457%`) est
+// plus fiable qu'une recherche floue sur le nom, et sert de repli name→number
+// avant repli name-only si jamais le numéro est absent.
 
 const { verify: verifySession } = require('./auth');
 
@@ -57,12 +70,12 @@ module.exports = async function handler(req, res) {
   const wlsCookie = session.wheelsysCookie;
   if (!wlsCookie) return res.status(401).json({ error: 'Session invalide, reconnectez-vous.' });
 
-  const name = String((req.body || {}).name || '').trim();
-  if (!name) return res.status(400).json({ error: 'name requis' });
+  const name          = String((req.body || {}).name || '').trim();
+  const accountNumber = String((req.body || {}).accountNumber || '').trim();
+  if (!name && !accountNumber) return res.status(400).json({ error: 'name ou accountNumber requis' });
 
-  try {
-    const raw = await globalSearch(tenant, wlsCookie, name);
-    const results = raw
+  function toResults(raw) {
+    return raw
       .filter(r => ENTITY_PAGE_BY_TYPE[r.EntryType])
       .map(r => ({
         id:    r.Id,
@@ -70,6 +83,19 @@ module.exports = async function handler(req, res) {
         label: r.DisplayValue,
         url:   `https://${tenant}.wheelsys.io/ui/manage/master/${ENTITY_PAGE_BY_TYPE[r.EntryType]}?entityId=${r.Id}`,
       }));
+  }
+
+  try {
+    // D-028 : le numéro de compte est un identifiant plus fiable que le nom
+    // (l'index de recherche wheelsys ne matche pas toujours le nom tel
+    // qu'affiché dans nos rapports) — on l'essaie en premier.
+    let results = [];
+    if (accountNumber) {
+      results = toResults(await globalSearch(tenant, wlsCookie, accountNumber));
+    }
+    if (results.length === 0 && name) {
+      results = toResults(await globalSearch(tenant, wlsCookie, name));
+    }
     return res.json({ ok: true, results });
   } catch (e) {
     if (e.message === 'SESSION_EXPIRED') return res.status(401).json({ error: 'Session wheelsys expirée, reconnectez-vous.' });
