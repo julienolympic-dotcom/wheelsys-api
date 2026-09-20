@@ -1012,6 +1012,39 @@
   repartir du postback capturé (référencé dans l'historique de conversation,
   pas dans ce fichier) plutôt que de le redécouvrir.
 
+## D-028 — Régression lien client en prod : recherche par nom seul insuffisante, ajout du numéro de compte
+
+- **Date** : 2026-07-19 (même jour que D-027, suite directe)
+- **Bug signalé par Julien en prod** : clic sur "CLIBAT AMENAGEMENT" (client
+  réel, existant) → "Aucune fiche trouvée dans wheelsys" alors que le client
+  existe bien. La recherche par nom seul (D-027) ne suffit pas pour tous les
+  clients — hypothèse : l'index de recherche wheelsys ne matche pas
+  nécessairement le nom tel qu'affiché dans nos rapports (espaces/accents
+  différents de la fiche réelle — cf. `"BRC  MENUISERIE"` avec double espace
+  déjà vu en direct dans le postback capturé D-027).
+- **Piste donnée par Julien** : "il faut rapprocher les noms des clients avec
+  leur numéro de compte" — le numéro de compte (`clientEntityId`, celui déjà
+  identifié en D-026 comme *pas* l'entityId réel mais le numéro affiché
+  "Corporate Customer - 1457") est un identifiant qu'on possède déjà depuis
+  les rapports wheelsys, et c'est un sous-texte du label indexé par la
+  recherche globale (vu en direct dans la capture D-027 : chercher
+  "Customer - 2640" trouve le bon compte).
+- **Correctif** : `api/resolve-client.js` accepte désormais `{name,
+  accountNumber}` et essaie **le numéro de compte en premier** (wildcard
+  `%<numéro>%` — pas besoin de connaître le préfixe "Customer -"/"Corporate -"
+  puisque le numéro seul est déjà un sous-texte du label indexé), puis
+  **replie sur le nom** si la recherche par numéro ne donne rien (garde le
+  comportement D-027 comme filet de sécurité, ex. si `clientEntityId` est
+  absent). `clientLink()`/`openClientInWheelsys()` (`index.html`) passent
+  maintenant les deux informations.
+- **Tests** : script Node isolé (`fetch` mocké) vérifiant l'ordre des appels
+  (numéro d'abord, repli sur le nom si 0 résultat) + QA navigateur (fetch
+  mocké) confirmant que le frontend envoie bien `{name, accountNumber}`.
+  Pas de test live supplémentaire (pas de session wheelsys active
+  disponible) — logique de repli conçue pour être sûre dans les deux sens
+  (numéro absent → nom seul comme avant D-028 ; numéro présent mais recherche
+  par nom qui aurait pu réussir seule → toujours tentée si le numéro échoue).
+
 ---
 _Liés : [instructions.md](./instructions.md) · [KNOWLEDGE.md](./KNOWLEDGE.md) ·
 [ROADMAP.md](./ROADMAP.md)_

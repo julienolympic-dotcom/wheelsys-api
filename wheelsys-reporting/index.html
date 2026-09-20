@@ -647,8 +647,16 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 // Échappe une valeur pour l'insérer dans un attribut onclick="...('valeur')"
+// L'ordre compte : d'abord échapper pour le contexte chaîne JS (backslash,
+// quote simple), puis neutraliser les caractères qui casseraient l'attribut
+// HTML délimité par des guillemets doubles (revue cyber D-028).
 function escJs(s) {
-  return String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return String(s ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 // ─── Init + vérif session ─────────────────────────────────────────────────────
@@ -1495,13 +1503,17 @@ function TENANT() {
 // Approche assistée, pas d'écriture : l'utilisateur modifie et enregistre
 // lui-même dans wheelsys une fois sur la fiche (choix Julien, module Credit
 // rating).
+// D-028 : la recherche par nom seul échoue pour certains clients ("CLIBAT
+// AMENAGEMENT" → 0 résultat en prod, régression signalée par Julien) — on
+// passe donc aussi le numéro de compte (`clientEntityId`), plus fiable,
+// utilisé en priorité côté backend.
 function clientLink(r) {
   const name = r.client || '—';
   if (!r.client) return escHtml(name);
-  return `<span class="client-open" onclick="openClientInWheelsys('${escJs(r.client)}', this)" title="Chercher et ouvrir dans wheelsys">${escHtml(name)}<span class="client-open-icon">🔍</span></span>`;
+  return `<span class="client-open" onclick="openClientInWheelsys('${escJs(r.client)}', '${escJs(r.clientEntityId || '')}', this)" title="Chercher et ouvrir dans wheelsys">${escHtml(name)}<span class="client-open-icon">🔍</span></span>`;
 }
 
-async function openClientInWheelsys(name, el) {
+async function openClientInWheelsys(name, accountNumber, el) {
   const icon = el.querySelector('.client-open-icon');
   if (icon) icon.textContent = '⏳';
   el.style.pointerEvents = 'none';
@@ -1509,7 +1521,7 @@ async function openClientInWheelsys(name, el) {
     const resp = await fetch('/api/resolve-client', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ name }),
+      body:    JSON.stringify({ name, accountNumber }),
     });
     const json = await resp.json();
     if (resp.status === 401) { window.location.href = '/login.html'; return; }
@@ -1521,7 +1533,14 @@ async function openClientInWheelsys(name, el) {
       return;
     }
     const nameLc = name.toLowerCase();
-    const best = results.find(r => (r.label || '').toLowerCase().includes(nameLc)) || results[0];
+    // D-028 : quand le nom ne matche aucun label (raison même du repli sur
+    // accountNumber), vérifier le numéro de compte avant de retomber sur
+    // results[0] au hasard (revue spider — sinon la mauvaise fiche peut
+    // s'ouvrir silencieusement).
+    const best =
+      results.find(r => (r.label || '').toLowerCase().includes(nameLc)) ||
+      (accountNumber && results.find(r => (r.label || '').includes(accountNumber))) ||
+      results[0];
     window.open(best.url, '_blank', 'noopener');
     if (results.length > 1) {
       console.warn(`Plusieurs fiches wheelsys correspondent à "${name}" — ouverture de la plus proche (${best.label}). Vérifiez que c'est le bon client une fois sur wheelsys.`, results);

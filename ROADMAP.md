@@ -95,6 +95,11 @@
       fiche (`corporate.aspx`/`driver.aspx`) dans un nouvel onglet. Lecture
       `partner.aspx/getPartnerInfo` confirmée aussi. Détail : DECISIONS.md
       D-027, KNOWLEDGE §4.1.
+- [x] D-028 (2026-07-19, régression signalée par Julien en prod) : recherche
+      par nom seul insuffisante pour certains clients réels (ex. CLIBAT
+      AMENAGEMENT → 0 résultat) — `resolve-client.js` essaie désormais le
+      numéro de compte (`clientEntityId`) en premier, replie sur le nom.
+      Détail : DECISIONS.md D-028.
 - [ ] Seuils de concentration 40 %/60 % (indicatifs, non validés) et seuil
       longue durée 30 jours — à ajuster si besoin dans `STATS_LONGUE_DUREE_JOURS`.
 - [ ] Relire le diff (`index.html` + `DECISIONS.md`/`KNOWLEDGE.md`) et

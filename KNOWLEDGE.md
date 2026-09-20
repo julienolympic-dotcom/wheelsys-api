@@ -109,7 +109,12 @@ confirmé en direct par Julien (capture DevTools sur sa session). Implémenté
 dans `api/resolve-client.js` (nouvel endpoint dédié), branché dans
 `clientLink()`/`openClientInWheelsys()` (`index.html`) : clic sur un nom
 client dans Stats → résout l'entityId → ouvre la vraie fiche wheelsys dans un
-nouvel onglet. Lecture aussi confirmée : `POST partner.aspx/getPartnerInfo`
+nouvel onglet. ⚠️ **D-028** : la recherche par nom seul échoue pour certains
+clients (l'index de recherche wheelsys ne matche pas toujours le nom tel
+qu'affiché dans nos rapports) — `resolve-client.js` essaie donc d'abord le
+**numéro de compte** (`clientEntityId`, wildcard `%<numéro>%`, sous-texte du
+label indexé — vu en direct : "Customer - 2640" trouve le bon compte), puis
+replie sur le nom. Lecture aussi confirmée : `POST partner.aspx/getPartnerInfo`
 avec `{tenantId:387, partnerId:"<entityId>"}` → 200. Écriture (champ "Credit
 rating" = `corporateCreditRating_combo`, confirmé) volontairement **non
 automatisée** : c'est un postback ASP.NET à ~100 champs, jugé trop fragile —
