@@ -1069,10 +1069,44 @@
     contrôlée, pas un upload utilisateur arbitraire. Un contenu malveillant
     supposerait déjà une compromission du SharePoint source, un problème plus
     large que cette dépendance.
+  - **Réserve (revue cyber)** : "interne" ne veut pas dire "sûr" — la vraie
+    question est *qui a le droit d'écriture* sur le fichier SharePoint pointé
+    par `FINANCE_SHARE_URL`, pas qui appelle l'API. `XLSX.read()` s'exécute
+    avant tout code métier : une prototype pollution se déclenche dans la lib
+    elle-même, sans passer par `buildFinanceByPlate`. **Non vérifié à ce
+    stade** : la liste exacte des identités ayant un droit d'édition sur ce
+    partage SharePoint (équipe finance ? compte de service ? externes ?).
   - **Décision** : risque accepté tel quel pour l'instant, pas de migration
     vers le package CDN SheetJS (changement de registre, hors scope d'un
-    correctif `npm audit` de routine). À reconsidérer si `xlsx` est un jour
-    utilisé sur un fichier dont la provenance n'est plus interne/contrôlée.
+    correctif `npm audit` de routine). **À reconsidérer** si (a) `xlsx` est un
+    jour utilisé sur un fichier dont la provenance n'est plus
+    interne/contrôlée, ou (b) le partage SharePoint s'avère accessible en
+    écriture à plus de monde que prévu — vérification à faire par Julien
+    (droits SharePoint hors périmètre technique de cette session).
+
+---
+
+## D-030 — backend-pilotage exposé sans authentification, CORS totalement ouvert (relevé par cyber)
+
+- **Date** : 2026-09-20
+- **Constat (revue cyber, sur la PR wheels-backend-pilotage#2, hors scope du
+  diff lui-même)** : `src/server.js` monte `app.use(cors())` sans restriction
+  d'origine, et **aucune route `/api/*` n'a de middleware d'authentification**
+  (pas d'API key, pas de session, pas de vérification d'origine). Combiné à
+  l'absence de garde, ceci transforme un backend pensé comme "usage interne"
+  en surface accessible à quiconque connaît l'URL — lecture des données
+  finance/wheelsys (`GET /api/plan-flotte` etc.), et effet aggravant si une
+  cellule Excel piégée de la Base Flotte finit par être rendue telle quelle
+  côté frontend (XSS stocké potentiel, à vérifier côté wheelsys-reporting).
+- **Statut** : **non corrigé dans cette session** — décision architecturale
+  (quel mécanisme d'auth : clé API partagée ? restriction CORS à l'origine du
+  frontend ? autre ?) qui dépasse le correctif `npm audit` en cours et
+  impacterait potentiellement le frontend consommateur (coordination
+  cross-repo). Remonté à Julien pour arbitrage ; pas de correctif proposé
+  sans son accord.
+- **Reste à faire côté humain** : décider du mécanisme d'auth/CORS à mettre
+  en place et prioriser (l'exposition est réelle dès aujourd'hui, indépendante
+  de ce PR npm audit).
 
 ---
 _Liés : [instructions.md](./instructions.md) · [KNOWLEDGE.md](./KNOWLEDGE.md) ·
