@@ -1046,5 +1046,34 @@
   par nom qui aurait pu réussir seule → toujours tentée si le numéro échoue).
 
 ---
+
+## D-029 — `npm audit` backend-pilotage : 3 correctifs appliqués, `xlsx` accepté en risque résiduel
+
+- **Date** : 2026-09-20
+- **Contexte** : `npm audit` sur `backend-pilotage` signalait 4 vulnérabilités
+  (3 modérées, 1 haute), relevées lors du re-clone/réparation du dépôt
+  (corruption git, cf. PR wheels-backend-pilotage#1) — sans rapport avec le
+  changement D-020/D-022/D-018 en cours à ce moment-là, traitées séparément.
+- **Correctif appliqué** : `npm audit fix` (bump patch non-breaking de
+  `body-parser`, `express`, `qs` — confirmé par `npm audit fix --dry-run`
+  avant application, aucun changement majeur). 169 tests unitaires
+  (finance/planFlotte/reco/renewalPlan/rules) rejoués après coup : toujours au
+  vert.
+- **`xlsx` (SheetJS) — pas de correctif disponible sur le registre npm**
+  (Prototype Pollution + ReDoS, GHSA-4r6h-8v6p-xvw6 / GHSA-5pgg-2g8v-p4x9).
+  Le correctif officiel SheetJS n'existe que via leur CDN propre
+  (`cdn.sheetjs.com`), pas sur npm.
+  - **Risque évalué comme faible dans ce contexte** : `xlsx` ne parse que le
+    fichier "Base Flotte" téléchargé depuis SharePoint via Microsoft Graph
+    (`src/financeSource.js`, `FINANCE_SHARE_URL`) — une source interne
+    contrôlée, pas un upload utilisateur arbitraire. Un contenu malveillant
+    supposerait déjà une compromission du SharePoint source, un problème plus
+    large que cette dépendance.
+  - **Décision** : risque accepté tel quel pour l'instant, pas de migration
+    vers le package CDN SheetJS (changement de registre, hors scope d'un
+    correctif `npm audit` de routine). À reconsidérer si `xlsx` est un jour
+    utilisé sur un fichier dont la provenance n'est plus interne/contrôlée.
+
+---
 _Liés : [instructions.md](./instructions.md) · [KNOWLEDGE.md](./KNOWLEDGE.md) ·
 [ROADMAP.md](./ROADMAP.md)_
