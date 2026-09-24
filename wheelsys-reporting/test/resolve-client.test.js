@@ -4,11 +4,10 @@
 // `./auth` est mocké via le cache de modules pour simuler une session valide
 // sans dépendre de la logique de login.
 //
-// Lancer : node --test test/  (depuis wheelsys-reporting/)
+// Lancer : npm test  (depuis wheelsys-reporting/)
 
 const test   = require('node:test');
 const assert = require('node:assert/strict');
-const path   = require('node:path');
 
 const authPath = require.resolve('../api/auth.js');
 require.cache[authPath] = {
