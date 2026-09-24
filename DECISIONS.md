@@ -1051,5 +1051,74 @@
   par nom qui aurait pu réussir seule → toujours tentée si le numéro échoue).
 
 ---
+
+## D-029 — `npm audit` backend-pilotage : 3 correctifs appliqués, `xlsx` accepté en risque résiduel
+
+- **Date** : 2026-09-20
+- **Contexte** : `npm audit` sur `backend-pilotage` signalait 4 vulnérabilités
+  (3 modérées, 1 haute), relevées lors du re-clone/réparation du dépôt
+  (re-clone après corruption git du dossier local) — sans rapport avec le
+  changement D-020/D-022/D-018 en cours à ce moment-là, traitées séparément.
+- **Correctif appliqué** : `npm audit fix` (bump non cassant de `body-parser`,
+  `express`, `qs` 6.15.2 → 6.16.0 et `path-to-regexp` 0.1.12 → 0.1.13 —
+  confirmé par `npm audit fix --dry-run` avant application, aucun changement
+  majeur). Mergé le 2026-09-24 (wheels-backend-pilotage#2, commit `d874d14`) ;
+  ce commit est celui déployé sur Railway (déploiement SUCCESS du 2026-09-24,
+  constaté via l'API Railway). 169 tests unitaires
+  (finance/planFlotte/reco/renewalPlan/rules) rejoués après coup : toujours au
+  vert.
+- **`xlsx` (SheetJS) — pas de correctif disponible sur le registre npm**
+  (Prototype Pollution + ReDoS, GHSA-4r6h-8v6p-xvw6 / GHSA-5pgg-2g8v-p4x9).
+  Le correctif officiel SheetJS n'existe que via leur CDN propre
+  (`cdn.sheetjs.com`), pas sur npm.
+  - **Risque évalué comme faible dans ce contexte** : `xlsx` ne parse que le
+    fichier "Base Flotte" téléchargé depuis SharePoint via Microsoft Graph
+    (`src/financeSource.js`, `FINANCE_SHARE_URL`) — une source interne
+    contrôlée, pas un upload utilisateur arbitraire. Un contenu malveillant
+    supposerait déjà une compromission du SharePoint source, un problème plus
+    large que cette dépendance.
+  - **Réserve (revue cyber, non consignée sur la PR)** : "interne" ne veut pas dire "sûr" — la vraie
+    question est *qui a le droit d'écriture* sur le fichier SharePoint pointé
+    par `FINANCE_SHARE_URL`, pas qui appelle l'API. `XLSX.read()` s'exécute
+    avant tout code métier : une prototype pollution se déclenche dans la lib
+    elle-même, sans passer par `buildFinanceByPlate`. **Non vérifié à ce
+    stade** : la liste exacte des identités ayant un droit d'édition sur ce
+    partage SharePoint (équipe finance ? compte de service ? externes ?).
+  - **Décision** : risque accepté tel quel pour l'instant, pas de migration
+    vers le package CDN SheetJS (changement de registre, hors scope d'un
+    correctif `npm audit` de routine). **À reconsidérer** si (a) `xlsx` est un
+    jour utilisé sur un fichier dont la provenance n'est plus
+    interne/contrôlée, ou (b) le partage SharePoint s'avère accessible en
+    écriture à plus de monde que prévu — vérification à faire par Julien
+    (droits SharePoint hors périmètre technique de cette session).
+
+---
+
+## D-030 — backend-pilotage exposé sans authentification, CORS totalement ouvert (relevé par cyber)
+
+- **Date** : 2026-09-20
+- **Constat (revue cyber, sur la PR wheels-backend-pilotage#2, hors scope du
+  diff lui-même)** : `src/server.js` monte `app.use(cors())` sans restriction
+  d'origine, et **aucune route `/api/*` n'a de middleware d'authentification**
+  (pas d'API key, pas de session, pas de vérification d'origine). Faute de
+  garde, ceci transforme un backend pensé comme "usage interne"
+  en surface accessible à quiconque connaît l'URL — lecture des données
+  finance/wheelsys (`GET /api/plan-flotte` etc.), et effet aggravant si une
+  cellule Excel piégée de la Base Flotte finit par être rendue telle quelle
+  côté frontend (XSS stocké potentiel, à vérifier côté wheelsys-reporting).
+- **Exposition constatée (2026-09-24)** : le service Railway a un domaine public
+  (`wheels-backend-pilotage-production.up.railway.app`, aucun domaine
+  personnalisé). Aucun appel non authentifié n'a été testé.
+- **Statut** : **non corrigé dans cette session** — décision architecturale
+  (quel mécanisme d'auth : clé API partagée ? restriction CORS à l'origine du
+  frontend ? autre ?) qui dépasse le correctif `npm audit` en cours et
+  impacterait potentiellement le frontend consommateur (coordination
+  cross-repo). Remonté à Julien pour arbitrage ; pas de correctif proposé
+  sans son accord.
+- **Reste à faire côté humain** : décider du mécanisme d'auth/CORS à mettre
+  en place et prioriser (l'exposition est réelle dès aujourd'hui, indépendante
+  de ce PR npm audit).
+
+---
 _Liés : [instructions.md](./instructions.md) · [KNOWLEDGE.md](./KNOWLEDGE.md) ·
 [ROADMAP.md](./ROADMAP.md)_
