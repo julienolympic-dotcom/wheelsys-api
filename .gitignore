@@ -27,3 +27,6 @@ build/
 Thumbs.db
 .idea/
 .vscode/
+
+# ─── Sauvegardes de récupération locales (contiennent .env, node_modules, .git imbriqué) ───
+backend-pilotage-corrompu-backup-*/
