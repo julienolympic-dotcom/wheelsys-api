@@ -691,8 +691,8 @@ le tri « prochaines sorties » remonte du passé. **À faire (9.4bis)** : sépa
 les positives. Décision à arrêter avec Julien (proposition D-010).
 
 ### Note env
-`package.json` exige `node: 20.x` ; Julien tourne node 24 → warning `EBADENGINE`
-inoffensif. Relâcher à `>=20` supprimerait le bruit.
+~~`package.json` exigeait `node: 20.x`~~ → passé à `24.x` (PR #3, D-028 ; Node 20 est désactivé sur
+Vercel le 2026-10-01). Le warning `EBADENGINE` sous Node 24 disparaît.
 
 ---
 

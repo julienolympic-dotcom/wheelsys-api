@@ -1037,10 +1037,15 @@
   comportement D-027 comme filet de sécurité, ex. si `clientEntityId` est
   absent). `clientLink()`/`openClientInWheelsys()` (`index.html`) passent
   maintenant les deux informations.
-- **Tests** : script Node isolé (`fetch` mocké) vérifiant l'ordre des appels
-  (numéro d'abord, repli sur le nom si 0 résultat) + QA navigateur (fetch
-  mocké) confirmant que le frontend envoie bien `{name, accountNumber}`.
-  Pas de test live supplémentaire (pas de session wheelsys active
+- **Tests** : suite committée dans `wheelsys-reporting/test/resolve-client.test.js`
+  (`node --test`, `fetch` et `./auth` mockés, aucun appel réseau réel) —
+  vérifie l'ordre des appels (numéro d'abord, repli sur le nom si 0 résultat),
+  la compatibilité D-027 (numéro absent → nom seul) et le 400 si les deux sont
+  absents. Ajoutée après-coup (2026-09-20) : le premier passage de D-028
+  (2026-07-19) s'appuyait sur un script isolé + une QA navigateur manuelle,
+  non committés — mention corrigée pour ne référencer que ce qui est
+  réellement rejouable (`npm test` depuis `wheelsys-reporting/`).
+  Pas de test live contre l'API wheelsys réelle (pas de session active
   disponible) — logique de repli conçue pour être sûre dans les deux sens
   (numéro absent → nom seul comme avant D-028 ; numéro présent mais recherche
   par nom qui aurait pu réussir seule → toujours tentée si le numéro échoue).
